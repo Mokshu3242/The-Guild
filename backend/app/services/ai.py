@@ -1,4 +1,6 @@
 # The Guild\backend\app\services\ai.py
+import json
+
 import httpx
 
 from app.config import settings
@@ -20,4 +22,7 @@ def run_ai(messages: list[dict], temperature: float = 0.2, max_tokens: int = 600
     data = r.json()
     if not data.get("success", False):
         raise RuntimeError(f"Workers AI error: {data}")
-    return data["result"]["response"]
+    response = data["result"]["response"]
+    if isinstance(response, (dict, list)):
+        return json.dumps(response)
+    return response
