@@ -10,3 +10,4 @@ psycopg2-binary==2.9.13
 PyJWT==2.15.1
 SQLAlchemy==2.0.54
 sqlmodel==0.0.47
+pytest==9.1.1

@@ -86,6 +86,7 @@ class Invoice(SQLModel, table=True):
     id: UUID = Field(default_factory=uuid4, primary_key=True)
     milestone_id: UUID = Field(foreign_key="milestones.id", index=True)
     paypal_invoice_id: str = Field(default="", index=True)
+    pay_url: str = ""
     amount: int
     status: str = "draft"  # draft, sent, paid, cancelled
     sent_at: Optional[datetime] = optional_time()

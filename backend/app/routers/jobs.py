@@ -17,6 +17,18 @@ class CreateJobIn(BaseModel):
     description: str = Field(min_length=10, max_length=4000)
 
 
+class AssignWorkerIn(BaseModel):
+    worker_id: UUID
+    match_reason: str = Field(default="", max_length=500)
+
+
+def get_job_in_my_guild(session: Session, job_id: UUID, me: Member) -> Job:
+    job = session.get(Job, job_id)
+    if not job or job.guild_id != me.guild_id:
+        raise HTTPException(404, "Job not found")
+    return job
+
+
 @router.post("")
 def create_job(
     body: CreateJobIn,
@@ -52,7 +64,30 @@ def get_job(
     me: Member = Depends(get_current_member),
     session: Session = Depends(get_session),
 ):
-    job = session.get(Job, job_id)
-    if not job or job.guild_id != me.guild_id:
-        raise HTTPException(404, "Job not found")
+    return get_job_in_my_guild(session, job_id, me)
+
+
+@router.post("/{job_id}/assign")
+def assign_worker(
+    job_id: UUID,
+    body: AssignWorkerIn,
+    me: Member = Depends(get_current_member),
+    session: Session = Depends(get_session),
+):
+    job = get_job_in_my_guild(session, job_id, me)
+    if job.referrer_id != me.id and me.role != "admin":
+        raise HTTPException(403, "Only the poster or an admin can assign")
+    if job.status in ("paid", "disputed"):
+        raise HTTPException(400, f"Can't reassign a job that is {job.status}")
+
+    worker = session.get(Member, body.worker_id)
+    if not worker or worker.guild_id != job.guild_id:
+        raise HTTPException(404, "Worker not in this guild")
+
+    job.worker_id = worker.id
+    job.match_reason = body.match_reason
+    job.status = "matched"
+    session.add(job)
+    session.commit()
+    session.refresh(job)
     return job

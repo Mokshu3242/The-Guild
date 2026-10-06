@@ -35,3 +35,9 @@ def auth_headers() -> dict:
         "Authorization": f"Bearer {get_access_token()}",
         "Content-Type": "application/json",
     }
+
+def usd(cents: int) -> str:
+    """10050 -> '100.50'. Integer math, no floats."""
+    if cents < 0:
+        raise ValueError("negative amount")
+    return f"{cents // 100}.{cents % 100:02d}"
