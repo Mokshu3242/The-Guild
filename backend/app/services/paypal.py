@@ -1,7 +1,7 @@
 # The Guild\backend\app\services\paypal.py
 import time
 import httpx
-
+from decimal import Decimal
 from app.config import settings
 
 _token: str | None = None
@@ -41,3 +41,7 @@ def usd(cents: int) -> str:
     if cents < 0:
         raise ValueError("negative amount")
     return f"{cents // 100}.{cents % 100:02d}"
+
+def cents_from_str(value: str) -> int:
+    """'10.00' -> 1000. Exact decimal math."""
+    return int((Decimal(value) * 100).to_integral_value())

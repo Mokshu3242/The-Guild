@@ -34,6 +34,7 @@ class Guild(SQLModel, table=True):
     monthly_fee: int = 1000
     claim_wait_days: int = 14
     claim_cap_pct: int = 50
+    paypal_plan_id: str = ""
     created_at: datetime = created_field()
 
 
@@ -116,6 +117,7 @@ class PoolTx(SQLModel, table=True):
     amount: int
     direction: str  # in or out
     source: str  # subscription, referral_slice, claim_payout, recovery
+    external_ref: Optional[str] = Field(default=None, unique=True)
     created_at: datetime = created_field()
 
 
@@ -126,7 +128,9 @@ class Subscription(SQLModel, table=True):
     guild_id: UUID = Field(foreign_key="guilds.id", index=True)
     member_id: UUID = Field(foreign_key="members.id", index=True)
     paypal_subscription_id: str = Field(default="", index=True)
-    status: str = "inactive"
+    approve_url: str = ""
+    status: str = "pending"  # pending, active, suspended, cancelled
+    activated_at: Optional[datetime] = optional_time()
     created_at: datetime = created_field()
 
 
