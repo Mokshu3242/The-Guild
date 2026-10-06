@@ -1,0 +1,12 @@
+country_code,account_type,primary_email_alias,password,first_name,last_name,ppBalance,addBank,ccType,payment_card
+US,BUSINESS,guild-sb@business.example.com,Gu1ld#Sb26!,Guild,Collective,10000,Y,VISA,PAYPAL
+US,PERSONAL,member0-sb@personal.example.com,M3mb0#Sb26!,Maya,Referrer,100,Y,VISA,PAYPAL
+US,PERSONAL,member2-sb@personal.example.com,M3mb2#Sb26!,Leo,Worker,100,Y,MASTERCARD,PAYPAL
+US,PERSONAL,member3-sb@personal.example.com,M3mb3#Sb26!,Sara,Claimant,100,Y,AMEX,PAYPAL
+US,PERSONAL,client1-sb@personal.example.com,Cl1nt1#Sb26!,Paul,Payer,5000,Y,VISA,PAYPAL
+US,PERSONAL,client2-sb@personal.example.com,Cl1nt2#Sb26!,Gary,Ghost,5000,Y,DISCOVER,PAYPAL
+
+Supabaseusername, pass
+maya@guild.test,maya@123
+leo@guild.test,leo@123
+sara@guild.test,sara@123
