@@ -1,8 +1,8 @@
 "use client";
 
 import useSWR from "swr";
-import { useParams } from "next/navigation";
-import { useState } from "react";
+import { Suspense, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { apiGet, apiPost } from "@/lib/api";
 import { usd } from "@/lib/format";
 import { useMe } from "@/lib/useMe";
@@ -16,8 +16,16 @@ interface Invoice { id: string; milestone_id: string; status: string; pay_url: s
 interface MatchPick { top_name: string; backup_name: string | null; reason: string; assigned: boolean }
 interface SyncResult { status: string; paypal_status?: string; worker_cents?: number; recovered_cents?: number }
 
-export default function JobPage() {
-  const { id } = useParams<{ id: string }>();
+export default function JobPageWrapper() {
+  return (
+    <Suspense fallback={<p className="text-muted">Loading job…</p>}>
+      <JobPage />
+    </Suspense>
+  );
+}
+
+function JobPage() {
+  const id = useSearchParams().get("id") ?? "";
   const { me } = useMe();
   const { data: guild } = useGuild(me?.guild_id);
   const { data: members } = useMembers(me?.guild_id);

@@ -10,10 +10,10 @@ import { useGuild } from "@/lib/useGuild";
 
 const NAV = [
   { href: "/", label: "Overview" },
-  { href: "/jobs", label: "Jobs" },
-  { href: "/claims", label: "Claims" },
-  { href: "/pool", label: "Pool" },
-  { href: "/agent", label: "Agent log" },
+  { href: "/jobs/", label: "Jobs" },
+  { href: "/claims/", label: "Claims" },
+  { href: "/pool/", label: "Pool" },
+  { href: "/agent/", label: "Agent log" },
 ];
 
 const clearCache = () => mutate(() => true, undefined, { revalidate: false });
@@ -30,7 +30,8 @@ function Brand() {
 }
 
 export function AppShell({ children }: { children: React.ReactNode }) {
-  const pathname = usePathname();
+  const rawPath = usePathname();
+  const pathname = rawPath.length > 1 ? rawPath.replace(/\/$/, "") : rawPath;
   const router = useRouter();
   const isLogin = pathname === "/login";
   const [email, setEmail] = useState<string | null>(null);
@@ -38,25 +39,37 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     const supabase = createClient();
+    let currentUser: string | null = null;
+
     supabase.auth.getSession().then(({ data }) => {
+      currentUser = data.session?.user.id ?? null;
       const e = data.session?.user.email ?? null;
       setEmail(e);
       setReady(true);
       if (!e && !isLogin) router.replace("/login");
       if (e && isLogin) router.replace("/");
     });
+
     const { data: sub } = supabase.auth.onAuthStateChange((event, session) => {
+      const nextUser = session?.user.id ?? null;
+      if (nextUser !== currentUser) {
+        clearCache();
+        currentUser = nextUser;
+      }
       setEmail(session?.user.email ?? null);
-      if (event === "SIGNED_IN" || event === "SIGNED_OUT") clearCache();
       if (event === "SIGNED_OUT") router.replace("/login");
     });
+
     return () => sub.subscription.unsubscribe();
   }, [isLogin, router]);
 
   if (isLogin) return <>{children}</>;
   if (!ready || !email) return null;
 
-  const active = (href: string) => (href === "/" ? pathname === "/" : pathname.startsWith(href));
+  const active = (href: string) => {
+    const h = href.replace(/\/$/, "") || "/";
+    return h === "/" ? pathname === "/" : pathname.startsWith(h);
+  };
 
   return (
     <div className="min-h-screen">
@@ -70,9 +83,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                   key={n.href}
                   href={n.href}
                   aria-current={active(n.href) ? "page" : undefined}
-                  className={`whitespace-nowrap rounded-sm border-b-2 px-2.5 py-2 focus:outline-none focus-visible:ring-2 focus-visible:ring-guild/40 ${
-                    active(n.href) ? "border-guild font-medium text-ink" : "border-transparent text-muted hover:text-ink"
-                  }`}
+                  className={`whitespace-nowrap rounded-sm border-b-2 px-2.5 py-2 focus:outline-none focus-visible:ring-2 focus-visible:ring-guild/40 ${active(n.href) ? "border-guild font-medium text-ink" : "border-transparent text-muted hover:text-ink"
+                    }`}
                 >
                   {n.label}
                 </Link>

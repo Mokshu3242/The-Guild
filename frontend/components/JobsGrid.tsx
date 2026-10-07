@@ -66,7 +66,7 @@ export function JobsGrid({ jobs, members }: { jobs: Job[]; members: Me[] }) {
         paginationPageSize={10}
         paginationPageSizeSelector={false}
         rowStyle={{ cursor: "pointer" }}
-        onRowClicked={(e) => e.data && router.push(`/jobs/${e.data.id}`)}
+        onRowClicked={(e) => e.data && router.push(`/jobs/view?id=${e.data.id}`)}
         overlayNoRowsTemplate="No jobs yet. Post one when a client asks for something you can't take."
       />
     </div>

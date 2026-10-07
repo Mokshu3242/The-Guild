@@ -19,7 +19,7 @@ export default function NewJobPage() {
     try {
       const job = await apiPost<{ id: string }>("/jobs", f);
       mutate("jobs");
-      router.push(`/jobs/${job.id}`);
+      router.push(`/jobs/view?id=${job.id}`);
     } catch (e) {
       setErr(e instanceof Error ? e.message : "Couldn't post the job");
       setBusy(false);

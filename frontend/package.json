@@ -21,7 +21,6 @@
     "swr": "^2.5.1"
   },
   "devDependencies": {
-    "@opennextjs/cloudflare": "^1.20.9",
     "@tailwindcss/postcss": "^4.3.3",
     "@tailwindcss/turbopack": "^4",
     "@types/node": "^20",
