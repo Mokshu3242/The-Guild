@@ -28,7 +28,7 @@ export default function LoginPage() {
       : await supabase.auth.signInWithPassword({ email: e, password: p });
     setBusy(false);
     if (error) return setError(error.message);
-    router.replace("/");
+    window.location.assign("/");
   }
 
   return (

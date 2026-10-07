@@ -3,7 +3,6 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
-import { mutate } from "swr";
 import { createClient } from "@/lib/supabase";
 import { useMe } from "@/lib/useMe";
 import { useGuild } from "@/lib/useGuild";
@@ -15,8 +14,6 @@ const NAV = [
   { href: "/pool/", label: "Pool" },
   { href: "/agent/", label: "Agent log" },
 ];
-
-const clearCache = () => mutate(() => true, undefined, { revalidate: false });
 
 function Brand() {
   const { me } = useMe();
@@ -39,25 +36,18 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     const supabase = createClient();
-    let currentUser: string | null = null;
 
     supabase.auth.getSession().then(({ data }) => {
-      currentUser = data.session?.user.id ?? null;
       const e = data.session?.user.email ?? null;
       setEmail(e);
       setReady(true);
-      if (!e && !isLogin) router.replace("/login");
-      if (e && isLogin) router.replace("/");
+      if (!e && !isLogin) router.replace("/login/");
+      if (e && isLogin) window.location.assign("/");
     });
 
     const { data: sub } = supabase.auth.onAuthStateChange((event, session) => {
-      const nextUser = session?.user.id ?? null;
-      if (nextUser !== currentUser) {
-        clearCache();
-        currentUser = nextUser;
-      }
       setEmail(session?.user.email ?? null);
-      if (event === "SIGNED_OUT") router.replace("/login");
+      if (event === "SIGNED_OUT") window.location.assign("/login/");
     });
 
     return () => sub.subscription.unsubscribe();

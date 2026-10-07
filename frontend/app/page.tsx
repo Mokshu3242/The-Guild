@@ -10,6 +10,6 @@ export default function Home() {
   if (isLoading) return <p className="text-muted">Loading your guild…</p>;
   if (noGuild) return <Onboarding />;
   if (error) return <ErrorText>{error.message}</ErrorText>;
-  if (!me) return null;
+    if (!me) return <p className="text-muted">Loading your guild…</p>;
   return <Dashboard me={me} />;
 }
