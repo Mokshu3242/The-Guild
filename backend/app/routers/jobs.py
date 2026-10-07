@@ -4,6 +4,8 @@ from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
 from sqlmodel import Session, select
 
+from app.services.ai import AIError
+from app.services.matcher import match_job
 from app.db import get_session
 from app.deps import get_current_member
 from app.models import Job, Member
@@ -91,3 +93,37 @@ def assign_worker(
     session.commit()
     session.refresh(job)
     return job
+
+class MatchIn(BaseModel):
+    auto_assign: bool = False
+
+
+@router.post("/{job_id}/match")
+def match(
+    job_id: UUID,
+    body: MatchIn,
+    me: Member = Depends(get_current_member),
+    session: Session = Depends(get_session),
+):
+    job = get_job_in_my_guild(session, job_id, me)
+    if job.referrer_id != me.id and me.role != "admin":
+        raise HTTPException(403, "Only the poster or an admin can match")
+    if job.status not in ("open", "matched"):
+        raise HTTPException(400, f"Can't match a job that is {job.status}")
+
+    try:
+        pick = match_job(session, job)
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+    except AIError as e:
+        session.rollback()
+        raise HTTPException(502, f"AI matching failed: {e}")
+
+    if body.auto_assign:
+        job.worker_id = UUID(pick["top_member_id"])
+        job.match_reason = pick["reason"]
+        job.status = "matched"
+        session.add(job)
+
+    session.commit()
+    return {**pick, "assigned": body.auto_assign}

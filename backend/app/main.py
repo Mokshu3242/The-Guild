@@ -4,7 +4,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.config import settings
-from app.routers import guilds, invoices, jobs, members, milestones, pool, webhooks
+from app.routers import agent, claims, guilds, invoices, jobs, members, milestones, pool, webhooks
 
 logging.basicConfig(level=logging.INFO)
 
@@ -36,3 +36,5 @@ app.include_router(milestones.router)
 app.include_router(invoices.router)
 app.include_router(pool.router)
 app.include_router(webhooks.router)
+app.include_router(claims.router)
+app.include_router(agent.router)

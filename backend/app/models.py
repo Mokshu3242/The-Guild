@@ -32,7 +32,8 @@ class Guild(SQLModel, table=True):
     referrer_pct: int = 10
     pool_pct: int = 5
     monthly_fee: int = 1000
-    claim_wait_days: int = 14
+    claim_wait_days: int = 14      # days a member must be in the guild
+    claim_overdue_days: int = 14   # days an invoice must be overdue
     claim_cap_pct: int = 50
     paypal_plan_id: str = ""
     created_at: datetime = created_field()
@@ -140,12 +141,15 @@ class Claim(SQLModel, table=True):
     id: UUID = Field(default_factory=uuid4, primary_key=True)
     guild_id: UUID = Field(foreign_key="guilds.id", index=True)
     member_id: UUID = Field(foreign_key="members.id")
-    invoice_id: UUID = Field(foreign_key="invoices.id")
+    invoice_id: UUID = Field(foreign_key="invoices.id", index=True)
+    statement: str = ""
     evidence_urls: list[str] = Field(default_factory=list, sa_column=Column(JSON))
-    ai_verdict: str = ""  # approve, reject, needs_more
+    status: str = "submitted"  # submitted, ai_reviewed, rejected, paid
+    ai_verdict: str = ""
     ai_reason: str = ""
     ai_confidence: float = 0.0
     admin_decision: str = "pending"
+    admin_note: str = ""
     payout_id: Optional[UUID] = Field(default=None, foreign_key="payouts.id")
     created_at: datetime = created_field()
 
