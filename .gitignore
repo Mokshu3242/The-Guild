@@ -8,3 +8,5 @@ venv/
 node_modules/
 .next/
 .DS_Store
+.env.local
+sandbox_accounts.csv
