@@ -42,3 +42,5 @@ next-env.d.ts
 
 .open-next/
 .wrangler/
+
+!.env.local.example

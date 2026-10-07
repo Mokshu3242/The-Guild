@@ -17,6 +17,7 @@ const SOURCE: Record<string, string> = {
   subscription: "Monthly member fee",
   recovery: "Recovered when a late client paid",
   claim_payout: "Covered a member's unpaid invoice",
+  founding: "Founding members' starting contribution",
 };
 
 export default function PoolPage() {

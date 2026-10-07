@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase";
 import { Button, ErrorText, inputCls } from "@/components/ui";
+import { SplitBar } from "@/components/SplitBar";
 
 const DEMO = [
   { name: "Maya", role: "guild admin", email: "maya@guild.test", password: "maya@123" },
@@ -38,6 +39,14 @@ export default function LoginPage() {
         <p className="mt-2 text-muted">
           Freelancers share overflow work, split every payment fairly, and cover each other when a client never pays.
         </p>
+        <div className="mt-6 rounded-lg border border-line bg-white p-5">
+          <p className="text-sm font-medium">When a client pays $100</p>
+          <div className="mt-3">
+            <SplitBar amount={10000} workerPct={85} referrerPct={10} poolPct={5}
+              workerName="Member who did the work" referrerName="Member who brought the client" />
+          </div>
+          <p className="mt-3 text-xs text-muted">Paid out automatically through PayPal. No splits to chase or argue about.</p>
+        </div>
 
         <form onSubmit={(e) => { e.preventDefault(); signIn(email, password, mode === "signup"); }}
           className="mt-8 space-y-3 rounded-lg border border-line bg-white p-6">
