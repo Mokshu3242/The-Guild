@@ -20,6 +20,14 @@ def next_tier(session: Session, invoice: Invoice, days: int) -> int | None:
     nxt = (max(sent) + 1) if sent else 1
     if nxt > 3 or days < TIER_DAYS[nxt]:
         return None
+    # turn on after video
+    # if sent:
+    #     last = session.exec(
+    #         select(Reminder.sent_at).where(Reminder.invoice_id == invoice.id)
+    #         .order_by(Reminder.tier.desc())
+    #     ).first()
+    #     if last and (utcnow() - last).days < 2:
+    #         return None
     return nxt
 
 

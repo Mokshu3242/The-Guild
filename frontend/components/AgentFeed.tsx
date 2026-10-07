@@ -19,6 +19,9 @@ const WHO: Record<string, { tag: string; cls: string }> = {
   "claim.rejected": { tag: "Human", cls: "bg-ink text-white" },
   "invoice.paid.split": { tag: "Rule", cls: "bg-seal-soft text-seal" },
   "pool.credit": { tag: "Rule", cls: "bg-seal-soft text-seal" },
+  "scope.drafted": { tag: "AI", cls: "bg-guild-soft text-guild" },
+  "scope.applied": { tag: "Human", cls: "bg-ink text-white" },
+    "milestone.removed": { tag: "Human", cls: "bg-ink text-white" },
 };
 
 function describe(a: Action): string {
@@ -37,6 +40,12 @@ function describe(a: Action): string {
       return `${i.rejected_by ?? "An admin"} rejected a claim.${i.override ? ` Went against the AI: "${i.admin_note}"` : ""}`;
     case "pool.credit":
       return `The pool received ${usd(r.amount_cents ?? 0)} from a monthly member fee.`;
+    case "scope.drafted":
+      return `Split a client brief into ${r.milestone_count} milestones totaling ${usd(r.total_cents ?? 0)}. ${r.pricing_basis ?? ""}`;
+    case "scope.applied":
+      return `${i.by ?? "A member"} reviewed and added ${i.count} milestones (${usd(r.total_cents ?? 0)}).`;
+          case "milestone.removed":
+      return `${i.by ?? "A member"} removed the milestone "${r.title}" (${usd(r.amount_cents ?? 0)}) before invoicing.`;
     default:
       return a.action;
   }

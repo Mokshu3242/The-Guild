@@ -3,7 +3,7 @@
 import useSWR, { mutate } from "swr";
 import { Suspense, useState } from "react";
 import { useSearchParams } from "next/navigation";
-import { apiGet, apiPost } from "@/lib/api";
+import { apiDelete, apiGet, apiPost } from "@/lib/api";
 import { usd } from "@/lib/format";
 import { useMe } from "@/lib/useMe";
 import { useGuild, useMembers } from "@/lib/useGuild";
@@ -134,6 +134,18 @@ function JobPage() {
         <Notice>{notice}</Notice>
       </Panel>
 
+      {isOwner && (milestones ?? []).length === 0 && ["open", "matched"].includes(job.status) && (
+        <Panel title="Turn the client's brief into milestones">
+          <ScopeBuilder jobId={id} onApplied={() => { refreshMs(); setNotice("Milestones added. Review the split below, then send the first invoice."); }} />
+        </Panel>
+      )}
+
+      {!job.worker_id && (milestones ?? []).length > 0 && (
+        <p className="mb-4 rounded-md bg-seal-soft px-3 py-2 text-sm text-seal">
+          Assign a worker to see how each payment splits and to send invoices.
+        </p>
+      )}
+
       <Panel title="Milestones">
         {(milestones ?? []).length === 0 && (
           <p className="text-sm text-muted">No milestones yet. Add one to invoice the client.</p>
@@ -170,6 +182,22 @@ function JobPage() {
                     <Button disabled={!job.worker_id || !!busy} onClick={() => sendInvoice(m.id)}
                       title={!job.worker_id ? "Assign a worker first" : undefined}>
                       {busy === `send-${m.id}` ? "Sending…" : "Send invoice"}
+                    </Button>
+                  )}
+                  {!inv && isOwner && (
+                    <Button
+                      variant="danger"
+                      disabled={!!busy}
+                      onClick={() => {
+                        if (!window.confirm(`Remove "${m.title}"? This can't be undone.`)) return;
+                        run(`remove-${m.id}`, async () => {
+                          await apiDelete(`/jobs/${id}/milestones/${m.id}`);
+                          setNotice(`Removed "${m.title}".`);
+                          refreshMs();
+                        });
+                      }}
+                    >
+                      {busy === `remove-${m.id}` ? "Removing…" : "Remove"}
                     </Button>
                   )}
                   {inv?.status === "sent" && (
@@ -294,5 +322,111 @@ function ReminderHistory({ invoiceId }: { invoiceId: string }) {
         ))}
       </ol>
     </details>
+  );
+}
+
+interface DraftMilestone { title: string; scope: string; amount_cents: number }
+interface ScopeDraft { summary: string; budget_cents: number | null; pricing_basis: string; milestones: DraftMilestone[] }
+interface EditRow { title: string; scope: string; amount: string }
+
+const toCents = (s: string) => Math.round(parseFloat(s || "0") * 100);
+
+function ScopeBuilder({ jobId, onApplied }: { jobId: string; onApplied: () => void }) {
+  const [brief, setBrief] = useState("");
+  const [draft, setDraft] = useState<ScopeDraft | null>(null);
+  const [rows, setRows] = useState<EditRow[]>([]);
+  const [busy, setBusy] = useState<"draft" | "apply" | null>(null);
+  const [err, setErr] = useState<string | null>(null);
+
+  async function runDraft() {
+    setBusy("draft"); setErr(null);
+    try {
+      const r = await apiPost<ScopeDraft>(`/jobs/${jobId}/scope/draft`, { brief });
+      setDraft(r);
+      setRows(r.milestones.map((m) => ({ title: m.title, scope: m.scope, amount: (m.amount_cents / 100).toFixed(2) })));
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : "Couldn't draft milestones");
+    } finally { setBusy(null); }
+  }
+
+  async function apply() {
+    setBusy("apply"); setErr(null);
+    try {
+      await apiPost(`/jobs/${jobId}/scope/apply`, {
+        milestones: rows.map((r) => ({ title: r.title, scope: r.scope, amount_cents: toCents(r.amount) })),
+      });
+      setDraft(null); setRows([]); setBrief("");
+      onApplied();
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : "Couldn't add milestones");
+    } finally { setBusy(null); }
+  }
+
+  const edit = (i: number, patch: Partial<EditRow>) =>
+    setRows((prev) => prev.map((r, idx) => (idx === i ? { ...r, ...patch } : r)));
+
+  const total = rows.reduce((sum, r) => sum + toCents(r.amount), 0);
+  const budget = draft?.budget_cents ?? null;
+  const offBudget = budget !== null && total !== budget;
+
+  if (!draft) {
+    return (
+      <div className="space-y-3">
+        <p className="text-sm text-muted">Paste what the client sent. The AI splits it into milestones you can review and edit before anything is created.</p>
+        <textarea rows={5} value={brief} onChange={(e) => setBrief(e.target.value)} className={inputCls}
+          placeholder="Paste the client's email, message, or notes…" />
+        <Button disabled={brief.trim().length < 30 || busy === "draft"} onClick={runDraft}>
+          {busy === "draft" ? "Reading the brief…" : "Draft milestones"}
+        </Button>
+        <ErrorText>{err}</ErrorText>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-3">
+      <div className="rounded-md bg-guild-soft px-3 py-2 text-sm text-guild">
+        <p><span className="rounded bg-white/60 px-1.5 py-0.5 text-xs font-semibold">AI</span> {draft.summary}</p>
+        <p className="mt-1 text-xs">{draft.pricing_basis}</p>
+      </div>
+
+      <ul className="space-y-3">
+        {rows.map((r, i) => (
+          <li key={i} className="rounded-md border border-line p-3">
+            <div className="flex flex-wrap items-center gap-2">
+              <input aria-label="Milestone title" value={r.title} onChange={(e) => edit(i, { title: e.target.value })}
+                className={`${inputCls} min-w-[180px] flex-1`} />
+              <label className="flex items-center gap-1 text-sm text-muted">$
+                <input aria-label="Amount in dollars" inputMode="decimal" value={r.amount}
+                  onChange={(e) => edit(i, { amount: e.target.value.replace(/[^0-9.]/g, "") })}
+                  className={`${inputCls} w-28`} />
+              </label>
+              <button type="button" onClick={() => setRows((p) => p.filter((_, idx) => idx !== i))}
+                className="text-sm text-alert hover:underline">Remove</button>
+            </div>
+            <textarea aria-label="What's included" rows={2} value={r.scope}
+              onChange={(e) => edit(i, { scope: e.target.value })} className={`${inputCls} mt-2`} />
+          </li>
+        ))}
+      </ul>
+
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <p className="text-sm">
+          Total <span className="font-semibold tabular-nums">{usd(total)}</span>
+          {budget !== null && (
+            <span className={offBudget ? "ml-2 text-alert" : "ml-2 text-muted"}>
+              {offBudget ? `(client's budget is ${usd(budget)})` : "(matches the client's budget)"}
+            </span>
+          )}
+        </p>
+        <div className="flex gap-2">
+          <Button variant="quiet" onClick={() => { setDraft(null); setRows([]); }}>Start over</Button>
+          <Button disabled={rows.length === 0 || busy === "apply"} onClick={apply}>
+            {busy === "apply" ? "Adding…" : `Add ${rows.length} milestone${rows.length === 1 ? "" : "s"}`}
+          </Button>
+        </div>
+      </div>
+      <ErrorText>{err}</ErrorText>
+    </div>
   );
 }

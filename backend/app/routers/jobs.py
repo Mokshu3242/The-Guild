@@ -8,7 +8,9 @@ from app.services.ai import AIError
 from app.services.matcher import match_job
 from app.db import get_session
 from app.deps import get_current_member
-from app.models import Job, Member
+
+from app.models import AgentAction, Job, Member, Milestone
+from app.services.scope_builder import MilestoneDraft, build_scope
 
 router = APIRouter(prefix="/jobs", tags=["jobs"])
 
@@ -127,3 +129,64 @@ def match(
 
     session.commit()
     return {**pick, "assigned": body.auto_assign}
+
+class ScopeBriefIn(BaseModel):
+    brief: str = Field(min_length=30, max_length=4000)
+
+
+class ApplyScopeIn(BaseModel):
+    milestones: list[MilestoneDraft] = Field(min_length=1, max_length=6)
+
+
+def _can_edit_scope(job: Job, me: Member) -> None:
+    if job.referrer_id != me.id and me.role != "admin":
+        raise HTTPException(403, "Only the poster or an admin can set milestones")
+    if job.status not in ("open", "matched"):
+        raise HTTPException(400, f"Can't change milestones on a job that is {job.status}")
+
+
+@router.post("/{job_id}/scope/draft")
+def draft_scope(
+    job_id: UUID,
+    body: ScopeBriefIn,
+    me: Member = Depends(get_current_member),
+    session: Session = Depends(get_session),
+):
+    job = get_job_in_my_guild(session, job_id, me)
+    _can_edit_scope(job, me)
+    try:
+        draft = build_scope(session, job, me, body.brief)
+    except AIError as e:
+        session.rollback()
+        raise HTTPException(502, f"The AI couldn't draft milestones: {e}")
+    session.commit()
+    return draft
+
+
+@router.post("/{job_id}/scope/apply")
+def apply_scope(
+    job_id: UUID,
+    body: ApplyScopeIn,
+    me: Member = Depends(get_current_member),
+    session: Session = Depends(get_session),
+):
+    job = get_job_in_my_guild(session, job_id, me)
+    _can_edit_scope(job, me)
+    if session.exec(select(Milestone).where(Milestone.job_id == job.id)).first():
+        raise HTTPException(400, "This job already has milestones. Add more one at a time below.")
+
+    created = [
+        Milestone(job_id=job.id, title=m.title.strip(), scope=m.scope.strip(), amount=m.amount_cents)
+        for m in body.milestones
+    ]
+    session.add_all(created)
+    session.add(AgentAction(
+        guild_id=job.guild_id,
+        action="scope.applied",
+        inputs={"job_id": str(job.id), "count": len(created), "by": me.name},
+        result={"titles": [m.title for m in created], "total_cents": sum(m.amount for m in created)},
+    ))
+    session.commit()
+    for m in created:
+        session.refresh(m)
+    return {"created": len(created), "milestones": created}
