@@ -1,10 +1,9 @@
 "use client";
 
-import { useState } from "react";
-import { useRouter } from "next/navigation";
+import Link from "next/link";
+import { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase";
 import { Button, ErrorText, inputCls } from "@/components/ui";
-import { SplitBar } from "@/components/SplitBar";
 
 const DEMO = [
   { name: "Maya", role: "guild admin", email: "maya@guild.test", password: "maya@123" },
@@ -13,12 +12,15 @@ const DEMO = [
 ];
 
 export default function LoginPage() {
-  const router = useRouter();
   const [mode, setMode] = useState<"signin" | "signup">("signin");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (window.location.hash === "#signup") setMode("signup");
+  }, []);
 
   async function signIn(e: string, p: string, signup = false) {
     setBusy(true);
@@ -27,29 +29,23 @@ export default function LoginPage() {
     const { error } = signup
       ? await supabase.auth.signUp({ email: e, password: p })
       : await supabase.auth.signInWithPassword({ email: e, password: p });
-    setBusy(false);
-    if (error) return setError(error.message);
-    window.location.assign("/");
+    if (error) {
+      setBusy(false);
+      return setError(error.message);
+    }
+    window.location.assign("/overview/");
   }
 
   return (
     <main className="grid min-h-screen place-items-center px-5 py-12">
-      <div className="w-full max-w-md">
-        <h1 className="font-display text-4xl font-bold tracking-tight">The Guild</h1>
-        <p className="mt-2 text-muted">
-          Freelancers share overflow work, split every payment fairly, and cover each other when a client never pays.
-        </p>
-        <div className="mt-6 rounded-lg border border-line bg-white p-5">
-          <p className="text-sm font-medium">When a client pays $100</p>
-          <div className="mt-3">
-            <SplitBar amount={10000} workerPct={85} referrerPct={10} poolPct={5}
-              workerName="Member who did the work" referrerName="Member who brought the client" />
-          </div>
-          <p className="mt-3 text-xs text-muted">Paid out automatically through PayPal. No splits to chase or argue about.</p>
-        </div>
+      <div className="w-full max-w-sm">
+        <Link href="/" className="font-display text-2xl font-bold tracking-tight">The Guild</Link>
+        <h1 className="mt-6 font-display text-3xl font-bold">
+          {mode === "signin" ? "Welcome back" : "Create your account"}
+        </h1>
 
-        <form onSubmit={(e) => { e.preventDefault(); signIn(email, password, mode === "signup"); }}
-          className="mt-8 space-y-3 rounded-lg border border-line bg-white p-6">
+        <form onSubmit={(ev) => { ev.preventDefault(); signIn(email, password, mode === "signup"); }}
+          className="mt-6 space-y-3 rounded-lg border border-line bg-white p-6">
           <label className="block text-sm font-medium">
             Email
             <input type="email" required value={email} onChange={(e) => setEmail(e.target.value)} className={`${inputCls} mt-1`} />
@@ -60,7 +56,7 @@ export default function LoginPage() {
           </label>
           <ErrorText>{error}</ErrorText>
           <Button disabled={busy} className="w-full">
-            {busy ? "Signing in…" : mode === "signin" ? "Sign in" : "Create account"}
+            {busy ? "One moment…" : mode === "signin" ? "Sign in" : "Create account"}
           </Button>
           <button type="button" onClick={() => setMode(mode === "signin" ? "signup" : "signin")}
             className="w-full text-sm text-muted hover:text-ink">
@@ -68,17 +64,15 @@ export default function LoginPage() {
           </button>
         </form>
 
-        <div className="mt-6">
-          <p className="text-sm text-muted">Exploring the demo? Sign in as a guild member:</p>
-          <div className="mt-2 grid grid-cols-3 gap-2">
-            {DEMO.map((d) => (
-              <button key={d.email} disabled={busy} onClick={() => signIn(d.email, d.password)}
-                className="rounded-md border border-line bg-white px-3 py-2 text-left hover:border-guild disabled:opacity-50">
-                <span className="block text-sm font-medium">{d.name}</span>
-                <span className="block text-xs text-muted">{d.role}</span>
-              </button>
-            ))}
-          </div>
+        <p className="mt-6 text-sm text-muted">Or open the demo as:</p>
+        <div className="mt-2 grid grid-cols-3 gap-2">
+          {DEMO.map((d) => (
+            <button key={d.email} disabled={busy} onClick={() => signIn(d.email, d.password)}
+              className="rounded-md border border-line bg-white px-3 py-2 text-left hover:border-guild disabled:opacity-50">
+              <span className="block text-sm font-medium">{d.name}</span>
+              <span className="block text-xs text-muted">{d.role}</span>
+            </button>
+          ))}
         </div>
       </div>
     </main>

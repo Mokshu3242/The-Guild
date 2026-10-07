@@ -1,6 +1,6 @@
 "use client";
 
-import useSWR from "swr";
+import useSWR, { mutate } from "swr";
 import { Suspense, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { apiGet, apiPost } from "@/lib/api";
@@ -183,6 +183,22 @@ function JobPage() {
                       <Button variant="quiet" disabled={!!busy} onClick={() => checkPayment(inv.id)}>
                         {busy === `sync-${inv.id}` ? "Checking…" : "Check payment"}
                       </Button>
+                      {me.role === "admin" && (
+                        <Button variant="quiet" disabled={!!busy} onClick={() => run(`remind-${inv.id}`, async () => {
+                          const r = await apiPost<{ status: string; tier?: number; subject?: string; days_overdue?: number }>(`/invoices/${inv.id}/remind`);
+                          const msg: Record<string, string> = {
+                            sent: `Reminder ${r.tier} of 3 sent: "${r.subject}"`,
+                            not_due: `No reminder due yet. The invoice is ${r.days_overdue} days old.`,
+                            already_paid: "The client already paid. Payout sent instead.",
+                            paypal_failed: "PayPal didn't accept the reminder. Try again shortly.",
+                          };
+                          setNotice(msg[r.status] ?? `Status: ${r.status}`);
+                          mutate(["reminders", inv.id]);
+                          refreshAll();
+                        })}>
+                          {busy === `remind-${inv.id}` ? "Writing reminder…" : "Send reminder"}
+                        </Button>
+                      )}
                       {isWorker && job.status !== "disputed" && (
                         <Button variant="danger" disabled={!!busy} onClick={() => setClaimFor(claimFor === inv.id ? null : inv.id)}>
                           Client isn't paying
@@ -191,6 +207,8 @@ function JobPage() {
                     </>
                   )}
                 </div>
+
+                {inv && <ReminderHistory invoiceId={inv.id} />}
 
                 {claimFor === inv?.id && inv && (
                   <ClaimForm invoiceId={inv.id} onDone={(msg) => { setClaimFor(null); setNotice(msg); refreshAll(); }} />
@@ -250,5 +268,31 @@ function ClaimForm({ invoiceId, onDone }: { invoiceId: string; onDone: (msg: str
       <ErrorText>{err}</ErrorText>
       <Button variant="danger" disabled={busy}>{busy ? "Filing and reviewing…" : "File claim"}</Button>
     </form>
+  );
+}
+
+interface Reminder { id: string; tier: number; subject: string; body: string; days_overdue: number; sent_at: string | null; written_by: string }
+
+const TIER_LABEL: Record<number, string> = { 1: "Friendly check-in", 2: "Firm reminder", 3: "Final notice" };
+
+function ReminderHistory({ invoiceId }: { invoiceId: string }) {
+  const { data } = useSWR<Reminder[]>(["reminders", invoiceId], () => apiGet<Reminder[]>(`/invoices/${invoiceId}/reminders`));
+  if (!data || data.length === 0) return null;
+  return (
+    <details className="mt-3 rounded-md border border-line bg-paper p-3 text-sm">
+      <summary className="cursor-pointer font-medium">Reminders sent to the client ({data.length})</summary>
+      <ol className="mt-3 space-y-3">
+        {data.map((r) => (
+          <li key={r.id} className="rounded-md bg-white p-3 ring-1 ring-line">
+            <p className="text-xs text-muted">
+              <span className="font-semibold text-seal">{TIER_LABEL[r.tier]}</span>, sent when {r.days_overdue} days overdue
+              {r.written_by === "ai" ? ", written by AI" : ""}
+            </p>
+            <p className="mt-1 font-medium">{r.subject}</p>
+            <p className="mt-1 whitespace-pre-line text-muted">{r.body}</p>
+          </li>
+        ))}
+      </ol>
+    </details>
   );
 }

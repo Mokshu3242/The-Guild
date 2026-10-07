@@ -25,6 +25,7 @@ class Settings(BaseSettings):
     # App
     frontend_url: str = ""
     public_base_url: str = "http://127.0.0.1:8000"
+    task_secret: str = ""
 
 
 settings = Settings()

@@ -8,7 +8,7 @@ import { useMe } from "@/lib/useMe";
 import { useGuild } from "@/lib/useGuild";
 
 const NAV = [
-  { href: "/", label: "Overview" },
+  { href: "/overview/", label: "Overview" },
   { href: "/jobs/", label: "Jobs" },
   { href: "/claims/", label: "Claims" },
   { href: "/pool/", label: "Pool" },
@@ -19,7 +19,7 @@ function Brand() {
   const { me } = useMe();
   const { data: guild } = useGuild(me?.guild_id);
   return (
-    <Link href="/" className="group flex flex-col leading-tight focus:outline-none focus-visible:ring-2 focus-visible:ring-guild/40 rounded-sm">
+    <Link href="/overview/" className="group flex flex-col leading-tight focus:outline-none focus-visible:ring-2 focus-visible:ring-guild/40 rounded-sm">
       <span className="font-display text-xl font-bold tracking-tight">The Guild</span>
       <span className="min-h-4 text-xs text-muted group-hover:text-ink">{guild?.name ?? ""}</span>
     </Link>
@@ -31,6 +31,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = rawPath.length > 1 ? rawPath.replace(/\/$/, "") : rawPath;
   const router = useRouter();
   const isLogin = pathname === "/login";
+  const isPublic = pathname === "/" || isLogin;
   const [email, setEmail] = useState<string | null>(null);
   const [ready, setReady] = useState(false);
 
@@ -41,8 +42,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       const e = data.session?.user.email ?? null;
       setEmail(e);
       setReady(true);
-      if (!e && !isLogin) router.replace("/login/");
-      if (e && isLogin) window.location.assign("/");
+      if (!e && !isPublic) router.replace("/login/");
+      if (e && isLogin) window.location.assign("/overview/");
     });
 
     const { data: sub } = supabase.auth.onAuthStateChange((event, session) => {
@@ -51,9 +52,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     });
 
     return () => sub.subscription.unsubscribe();
-  }, [isLogin, router]);
+  }, [isLogin, isPublic, router]);
 
-  if (isLogin) return <>{children}</>;
+    if (isPublic) return <>{children}</>;
   if (!ready || !email) return null;
 
   const active = (href: string) => {
@@ -82,7 +83,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             </nav>
           </div>
           <div className="flex items-center gap-4 text-sm">
-            <span className="hidden text-muted sm:inline">{email}</span>
+            <Link href="/profile/" className="hidden rounded-sm text-muted hover:text-ink focus:outline-none focus-visible:ring-2 focus-visible:ring-guild/40 sm:inline">
+  {email}
+</Link>
             <button
               onClick={() => createClient().auth.signOut()}
               className="rounded-sm text-muted hover:text-ink focus:outline-none focus-visible:ring-2 focus-visible:ring-guild/40"

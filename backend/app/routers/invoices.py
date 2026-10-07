@@ -8,9 +8,11 @@ from sqlmodel import Session, select
 
 from app.db import get_session
 from app.deps import get_current_member
-from app.models import Invoice, Job, Member, Milestone, utcnow
 from app.services import paypal_invoices
 from app.services.money import process_paid_invoice
+from app.deps import get_current_member, require_admin
+from app.models import Invoice, Job, Member, Milestone, Reminder, utcnow
+from app.services.reminders import remind_one
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/invoices", tags=["invoices"])
@@ -142,3 +144,29 @@ def sync_invoice(
     result = process_paid_invoice(session, invoice.id, source="sync")
     session.commit()
     return result
+
+@router.post("/{invoice_id}/remind")
+def remind_now(
+    invoice_id: UUID,
+    admin: Member = Depends(require_admin),
+    session: Session = Depends(get_session),
+):
+    """Send the next due reminder for THIS invoice only."""
+    invoice, _, job = _invoice_in_my_guild(session, invoice_id, admin)
+    try:
+        return remind_one(session, invoice, job.guild_id)
+    except httpx.HTTPStatusError as e:
+        session.rollback()
+        raise _paypal_error(e)
+
+
+@router.get("/{invoice_id}/reminders")
+def invoice_reminders(
+    invoice_id: UUID,
+    me: Member = Depends(get_current_member),
+    session: Session = Depends(get_session),
+):
+    _invoice_in_my_guild(session, invoice_id, me)
+    return session.exec(
+        select(Reminder).where(Reminder.invoice_id == invoice_id).order_by(Reminder.tier)
+    ).all()

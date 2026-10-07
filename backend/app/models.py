@@ -2,7 +2,7 @@ from datetime import datetime, timezone
 from typing import Optional
 from uuid import UUID, uuid4
 
-from sqlalchemy import JSON, Column, DateTime
+from sqlalchemy import JSON, Column, DateTime, UniqueConstraint
 from sqlmodel import Field, SQLModel
 
 
@@ -172,4 +172,19 @@ class AgentAction(SQLModel, table=True):
     action: str
     inputs: dict = Field(default_factory=dict, sa_column=Column(JSON))
     result: dict = Field(default_factory=dict, sa_column=Column(JSON))
+    created_at: datetime = created_field()
+
+class Reminder(SQLModel, table=True):
+    __tablename__ = "reminders"
+    __table_args__ = (UniqueConstraint("invoice_id", "tier", name="uq_reminder_invoice_tier"),)
+
+    id: UUID = Field(default_factory=uuid4, primary_key=True)
+    guild_id: UUID = Field(foreign_key="guilds.id", index=True)
+    invoice_id: UUID = Field(foreign_key="invoices.id", index=True)
+    tier: int  # 1 friendly, 2 firm, 3 final
+    subject: str = ""
+    body: str = ""
+    days_overdue: int = 0
+    written_by: str = "ai"  # ai or template
+    sent_at: Optional[datetime] = optional_time()
     created_at: datetime = created_field()

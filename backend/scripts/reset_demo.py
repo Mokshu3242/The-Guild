@@ -26,7 +26,7 @@ from sqlmodel import Session, delete, select
 from app.db import engine
 from app.models import (
     AgentAction, Claim, Guild, Invoice, Job, Member, Milestone,
-    Payout, PoolTx, Subscription, WebhookEvent, utcnow,
+    Payout, PoolTx, Reminder, Subscription, WebhookEvent, utcnow,
 )
 from app.services import paypal_invoices
 
@@ -64,7 +64,7 @@ def remember_paypal_links(session: Session) -> dict:
 
 
 def wipe(session: Session) -> None:
-    for model in (AgentAction, Claim, Payout, PoolTx, Subscription, WebhookEvent,
+    for model in (Reminder, AgentAction, Claim, Payout, PoolTx, Subscription, WebhookEvent,
                   Invoice, Milestone, Job, Member, Guild):
         session.exec(delete(model))
     session.commit()

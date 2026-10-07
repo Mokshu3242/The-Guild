@@ -62,3 +62,13 @@ def get_invoice(paypal_invoice_id: str) -> dict:
 def payer_url(invoice: dict) -> str:
     """The link the client opens to pay."""
     return invoice.get("detail", {}).get("metadata", {}).get("recipient_view_url", "")
+
+def remind_invoice(paypal_invoice_id: str, tier: int, subject: str, note: str) -> None:
+    """Ask PayPal to email the client a reminder. One request ID per tier."""
+    r = httpx.post(
+        f"{_base()}/v2/invoicing/invoices/{paypal_invoice_id}/remind",
+        headers={**auth_headers(), "PayPal-Request-Id": f"REMIND-{paypal_invoice_id}-T{tier}"},
+        json={"subject": subject[:255], "note": note[:1000], "send_to_invoicer": True},
+        timeout=30,
+    )
+    r.raise_for_status()
