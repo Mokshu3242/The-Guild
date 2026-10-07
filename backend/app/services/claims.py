@@ -28,7 +28,11 @@ def pay_claim(session: Session, claim_id, admin: Member, note: str = "", overrid
     if amount <= 0:
         raise ValueError("Claim amount is zero")
     if guild.pool_balance < amount:
-        raise ValueError(f"Pool has {guild.pool_balance} cents, this claim needs {amount}")
+        raise ValueError(
+            f"The pool has ${guild.pool_balance // 100}.{guild.pool_balance % 100:02d}, "
+            f"but this claim needs ${amount // 100}.{amount % 100:02d}. "
+            "It refills as invoices get paid and members contribute."
+        )
     if not member.paypal_email:
         raise ValueError(f"{member.name} has no PayPal email on file")
 

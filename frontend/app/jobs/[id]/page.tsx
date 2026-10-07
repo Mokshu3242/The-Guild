@@ -92,6 +92,11 @@ export default function JobPage() {
           <StatusPill status={job.status} />
         </div>
         <p className="mt-1 text-sm text-muted">Posted by {nameOf(job.referrer_id)}. Worker: {nameOf(job.worker_id)}.</p>
+        {job.status === "disputed" && me.role === "admin" && (
+          <a href="/claims" className="mt-2 inline-block text-sm text-alert hover:underline">
+            A claim is waiting for your review
+          </a>
+        )}
       </div>
 
       <Panel title="What the client needs">
@@ -140,8 +145,15 @@ export default function JobPage() {
 
                 {guild && job.worker_id && (
                   <div className="mt-3">
-                    <SplitBar amount={m.amount} workerPct={guild.worker_pct} referrerPct={guild.referrer_pct} poolPct={guild.pool_pct}
-                      hasReferrer={hasReferrer} workerName={nameOf(job.worker_id)} referrerName={nameOf(job.referrer_id)} />
+                    <SplitBar
+                      amount={m.amount}
+                      workerPct={guild.worker_pct}
+                      referrerPct={guild.referrer_pct}
+                      poolPct={guild.pool_pct}
+                      hasReferrer={hasReferrer}
+                      workerName={nameOf(job.worker_id)}
+                      referrerName={nameOf(job.referrer_id)}
+                    />
                   </div>
                 )}
 
@@ -163,7 +175,7 @@ export default function JobPage() {
                       <Button variant="quiet" disabled={!!busy} onClick={() => checkPayment(inv.id)}>
                         {busy === `sync-${inv.id}` ? "Checking…" : "Check payment"}
                       </Button>
-                      {isWorker && (
+                      {isWorker && job.status !== "disputed" && (
                         <Button variant="danger" disabled={!!busy} onClick={() => setClaimFor(claimFor === inv.id ? null : inv.id)}>
                           Client isn't paying
                         </Button>
