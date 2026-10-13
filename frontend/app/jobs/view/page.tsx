@@ -9,6 +9,7 @@ import { useMe } from "@/lib/useMe";
 import { useGuild, useMembers } from "@/lib/useGuild";
 import type { Job } from "@/components/JobsGrid";
 import { SplitBar } from "@/components/SplitBar";
+import { MoneyFlow, type SplitData } from "@/components/MoneyFlow";
 import {
   Button,
   ErrorText,
@@ -89,6 +90,7 @@ function JobPage() {
   const [notice, setNotice] = useState<string | null>(null);
   const [pick, setPick] = useState<MatchPick | null>(null);
   const [claimFor, setClaimFor] = useState<string | null>(null);
+  const [splitOverlay, setSplitOverlay] = useState<SplitData | null>(null);
 
   async function run(key: string, fn: () => Promise<void>) {
     setBusy(key);
@@ -116,6 +118,29 @@ function JobPage() {
   const isOwner = job.referrer_id === me.id || me.role === "admin";
   const isWorker = job.worker_id === me.id;
   const hasReferrer = !!job.worker_id && job.referrer_id !== job.worker_id;
+  // Same 85 / 10 / 5 math as the split bar. The backend still does the real split.
+  const splitFor = (
+    amount: number,
+    source: SplitData["source"],
+    recoveredCents = 0,
+  ): SplitData | null => {
+    if (!guild || !job.worker_id) return null;
+    const frac = (p: number) => (p > 1 ? p / 100 : p);
+    const poolCents = Math.floor(amount * frac(guild.pool_pct));
+    const referrerCents = hasReferrer
+      ? Math.floor(amount * frac(guild.referrer_pct))
+      : 0;
+    return {
+      amountCents: amount,
+      workerCents: amount - poolCents - referrerCents,
+      referrerCents,
+      poolCents,
+      recoveredCents,
+      workerName: nameOf(job.worker_id),
+      referrerName: nameOf(job.referrer_id),
+      source,
+    };
+  };
   const invoiceFor = (msId: string) =>
     invoices?.find((i) => i.milestone_id === msId);
   const depositFor = (msId: string) =>
@@ -158,6 +183,9 @@ function JobPage() {
     run(`sync-${invId}`, async () => {
       const r = await apiPost<SyncResult>(`/invoices/${invId}/sync`);
       if (r.status === "processed") {
+        const inv = invoices?.find((i) => i.id === invId);
+        const ms = milestones?.find((x) => x.id === inv?.milestone_id);
+        if (ms) setSplitOverlay(splitFor(ms.amount, "invoice", r.recovered_cents ?? 0));
         setNotice(
           `Paid. ${usd(r.worker_cents ?? 0)} sent to the worker${r.recovered_cents ? `, and ${usd(r.recovered_cents)} returned to the pool` : ""}.`,
         );
@@ -300,6 +328,7 @@ function JobPage() {
                     canRequest={isOwner && !inv && m.status === "pending"}
                     isAdmin={me.role === "admin"}
                     onChange={refreshAll}
+                    onCaptured={() => setSplitOverlay(splitFor(m.amount, "deposit"))}
                   />
                 )}
 
@@ -467,6 +496,8 @@ function JobPage() {
             />
           </Panel>
         )}
+
+      <MoneyFlow data={splitOverlay} onDone={() => setSplitOverlay(null)} />
     </div>
   );
 }
@@ -488,6 +519,7 @@ function DepositPanel({
   canRequest,
   isAdmin,
   onChange,
+  onCaptured,
 }: {
   jobId: string;
   milestone: Milestone;
@@ -495,6 +527,7 @@ function DepositPanel({
   canRequest: boolean;
   isAdmin: boolean;
   onChange: () => void;
+  onCaptured?: () => void;
 }) {
   const [busy, setBusy] = useState<string | null>(null);
   const [err, setErr] = useState<string | null>(null);
@@ -640,7 +673,9 @@ function DepositPanel({
               disabled={!!busy}
               onClick={() =>
                 act("capture", () =>
-                  apiPost(`/deposits/${deposit.id}/capture`).then(() => {}),
+                  apiPost(`/deposits/${deposit.id}/capture`).then(() => {
+                    onCaptured?.();
+                  }),
                 )
               }
             >
