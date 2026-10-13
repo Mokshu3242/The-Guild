@@ -1,6 +1,8 @@
 "use client";
 
+import { useRef } from "react";
 import useSWR from "swr";
+import { motion, useReducedMotion } from "motion/react";
 import { apiGet } from "@/lib/api";
 import { timeAgo, usd } from "@/lib/format";
 
@@ -25,7 +27,7 @@ const WHO: Record<string, { tag: string; cls: string }> = {
   "scope.creep_flagged": { tag: "AI", cls: "bg-guild-soft text-guild" },
   "scope.addon_added": { tag: "Human", cls: "bg-ink text-white" },
   "scope.flag_dismissed": { tag: "Human", cls: "bg-ink text-white" },
-    "deposit.requested": { tag: "Human", cls: "bg-ink text-white" },
+  "deposit.requested": { tag: "Human", cls: "bg-ink text-white" },
   "deposit.held": { tag: "PayPal", cls: "bg-seal-soft text-seal" },
   "deposit.reviewed": { tag: "AI", cls: "bg-guild-soft text-guild" },
   "deposit.captured": { tag: "Human", cls: "bg-ink text-white" },
@@ -80,13 +82,29 @@ function describe(a: Action): string {
 export function AgentFeed({
   limit = 6,
   showRaw = false,
+  pollMs = 4000,
 }: {
   limit?: number;
   showRaw?: boolean;
+  pollMs?: number;
 }) {
-  const { data, error } = useSWR<Action[]>(["agent", limit], () =>
-    apiGet<Action[]>(`/agent/actions?limit=${limit}`),
+  const reduce = useReducedMotion();
+  const { data, error } = useSWR<Action[]>(
+    ["agent", limit],
+    () => apiGet<Action[]>(`/agent/actions?limit=${limit}`),
+    { refreshInterval: pollMs },
   );
+
+  // Remember what was already on screen, so only new entries animate.
+  // Seed again when the limit changes, so "last 50" doesn't animate everything.
+  const seen = useRef<Set<string> | null>(null);
+  const seededFor = useRef<number | null>(null);
+  if (data && seededFor.current !== limit) {
+    seen.current = new Set(data.map((a) => a.id));
+    seededFor.current = limit;
+  }
+  const isFresh = (id: string) => !!seen.current && !seen.current.has(id);
+
   if (error) return <p className="text-sm text-alert">{error.message}</p>;
   if (!data) return <p className="text-sm text-muted">Loading activity…</p>;
   if (data.length === 0)
@@ -103,13 +121,24 @@ export function AgentFeed({
           tag: "System",
           cls: "bg-paper text-muted",
         };
+        const fresh = !reduce && isFresh(a.id);
         return (
-          <li key={a.id} className="flex gap-3 py-3 first:pt-0 last:pb-0">
-            <span
+          <motion.li
+            key={a.id}
+            className="flex gap-3 py-3 first:pt-0 last:pb-0"
+            initial={fresh ? { opacity: 0, y: -12 } : false}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.35, ease: [0.22, 1, 0.36, 1] }}
+            onAnimationComplete={() => seen.current?.add(a.id)}
+          >
+            <motion.span
               className={`h-fit rounded px-1.5 py-0.5 text-xs font-semibold ${who.cls}`}
+              initial={fresh ? { scale: 0.5, opacity: 0 } : false}
+              animate={{ scale: 1, opacity: 1 }}
+              transition={{ delay: 0.18, type: "spring", stiffness: 420, damping: 20 }}
             >
               {who.tag}
-            </span>
+            </motion.span>
             <div className="min-w-0 flex-1">
               <p className="text-sm">{describe(a)}</p>
               <p className="mt-0.5 text-xs text-muted">
@@ -117,7 +146,7 @@ export function AgentFeed({
               </p>
               {showRaw && (
                 <details className="mt-2 text-xs">
-                  <summary className="cursor-pointer text-muted hover:text-ink">
+                  <summary className="cursor-pointer rounded-sm text-muted hover:text-ink focus:outline-none focus-visible:ring-2 focus-visible:ring-guild/40">
                     Show what the system saw
                   </summary>
                   <pre className="mt-2 overflow-x-auto rounded-md bg-paper p-3">
@@ -130,7 +159,7 @@ export function AgentFeed({
                 </details>
               )}
             </div>
-          </li>
+          </motion.li>
         );
       })}
     </ol>

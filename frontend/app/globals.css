@@ -21,3 +21,23 @@
 @media (prefers-reduced-motion: reduce) {
   * { transition: none !important; animation: none !important; }
 }
+
+@keyframes guild-shimmer {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+.guild-shimmer {
+  background-image: linear-gradient(
+    90deg,
+    var(--color-line) 0%,
+    var(--color-white, #fff) 50%,
+    var(--color-line) 100%
+  );
+  background-size: 200% 100%;
+  animation: guild-shimmer 1.4s linear infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .guild-shimmer { animation: none; }
+}

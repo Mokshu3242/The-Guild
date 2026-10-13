@@ -11,6 +11,7 @@ import { useGuild, useMembers } from "@/lib/useGuild";
 import type { Job } from "@/components/JobsGrid";
 import { SplitBar } from "@/components/SplitBar";
 import { MoneyFlow, type SplitData } from "@/components/MoneyFlow";
+import { AiThinking } from "@/components/AiThinking";
 import {
   Button,
   ErrorText,
@@ -240,6 +241,11 @@ function JobPage() {
             <Button disabled={!!busy} onClick={() => match(true)}>
               {busy === "assign" ? "Matching…" : "Match and assign"}
             </Button>
+          </div>
+        )}
+        {(busy === "suggest" || busy === "assign") && (
+          <div className="mt-4">
+            <AiThinking label="Reading the job and picking the best member…" />
           </div>
         )}
         {pick && (
@@ -815,6 +821,11 @@ function DepositPanel({
                 {busy === "void" ? "Releasing…" : "Release hold"}
               </Button>
             </div>
+            {busy === "review" && (
+              <div className="mt-3">
+                <AiThinking label="Comparing the delivery note to the scope…" />
+              </div>
+            )}
           </>
         )}
 
@@ -1064,6 +1075,9 @@ function ScopeBuilder({
         >
           {busy === "draft" ? "Reading the brief…" : "Draft milestones"}
         </Button>
+        {busy === "draft" && (
+          <AiThinking label="Turning the brief into priced milestones…" />
+        )}
         <ErrorText>{err}</ErrorText>
       </div>
     );
@@ -1262,6 +1276,11 @@ function ScopeWatch({
       >
         {busy === "check" ? "Checking…" : "Check against scope"}
       </Button>
+      {busy === "check" && (
+        <div className="mt-3">
+          <AiThinking label="Checking the message against the agreed scope…" />
+        </div>
+      )}
       <ErrorText>{err}</ErrorText>
 
       {open.map((f) => {
