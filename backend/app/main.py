@@ -2,7 +2,8 @@ import logging
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-
+from sqlalchemy import text
+from app.db import engine
 from app.config import settings
 from app.routers import agent, claims, guilds, invoices, jobs, members, milestones, pool, tasks, webhooks
 
@@ -27,6 +28,12 @@ def root():
 @app.get("/health")
 def health():
     return {"status": "ok", "service": "guild-backend"}
+
+@app.get("/health/db")
+def health_db():
+    with engine.connect() as conn:
+        conn.execute(text("select 1"))
+    return {"status": "ok", "database": "reachable"}
 
 
 app.include_router(guilds.router)

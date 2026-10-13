@@ -24,4 +24,4 @@ jobs:
           fi
 
           echo "Pinging Render..."
-          curl -fsS --max-time 90 https://guild-backend-vqg5.onrender.com/health || echo "Ping failed or timed out, will retry next run."
+          curl -fsS --max-time 90 https://guild-backend-vqg5.onrender.com/health/db || echo "Ping failed or timed out, will retry next run."
