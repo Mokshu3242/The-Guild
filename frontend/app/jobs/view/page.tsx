@@ -1,7 +1,8 @@
 "use client";
 
 import useSWR, { mutate } from "swr";
-import { Suspense, useState } from "react";
+import { Suspense, useEffect, useRef, useState } from "react";
+import { motion, useReducedMotion } from "motion/react";
 import { useSearchParams } from "next/navigation";
 import { apiDelete, apiGet, apiPost } from "@/lib/api";
 import { timeAgo, usd } from "@/lib/format";
@@ -322,6 +323,7 @@ function JobPage() {
 
                 {guild && job.worker_id && (
                   <DepositPanel
+                    key={depositFor(m.id)?.id ?? "none"}
                     jobId={id}
                     milestone={m}
                     deposit={depositFor(m.id)}
@@ -510,7 +512,63 @@ const DEPOSIT_LABEL: Record<string, { text: string; cls: string }> = {
     cls: "bg-paper text-muted",
   },
   authorized: { text: "On hold, not charged yet", cls: "bg-seal-soft text-seal" },
+  opening: { text: "Captured", cls: "bg-guild-soft text-guild" },
+  released: { text: "Released, not charged", cls: "bg-paper text-muted" },
 };
+
+const SEAL_EASE = [0.22, 1, 0.36, 1] as const;
+
+// A small padlock. The shackle lifts and tilts when it opens.
+function LockIcon({ open, reduce }: { open: boolean; reduce: boolean }) {
+  return (
+    <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" aria-hidden="true">
+      <motion.path
+        d="M8 11V7a4 4 0 0 1 8 0v4"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        style={{ originX: "8px", originY: "11px" }}
+        initial={false}
+        animate={open ? { y: -3, rotate: -18 } : { y: 0, rotate: 0 }}
+        transition={reduce ? { duration: 0 } : { duration: 0.35, ease: SEAL_EASE }}
+      />
+      <rect x="5" y="11" width="14" height="10" rx="2" fill="currentColor" />
+    </svg>
+  );
+}
+
+function StatusSeal({
+  phase,
+  dropIn,
+  reduce,
+}: {
+  phase: "created" | "authorized" | "opening" | "released";
+  dropIn: boolean;
+  reduce: boolean;
+}) {
+  if (phase === "created") {
+    return (
+      <motion.span
+        className="block h-2 w-2 rounded-full bg-gray-400"
+        animate={reduce ? undefined : { opacity: [0.35, 1, 0.35] }}
+        transition={{ duration: 1.6, repeat: Infinity, ease: "easeInOut" }}
+        aria-hidden="true"
+      />
+    );
+  }
+  const color =
+    phase === "opening" ? "text-guild" : phase === "released" ? "text-muted" : "text-seal";
+  return (
+    <motion.span
+      className={`block transition-colors duration-300 ${color}`}
+      initial={dropIn && !reduce ? { y: -24, opacity: 0, scale: 0.5 } : false}
+      animate={{ y: 0, opacity: 1, scale: 1 }}
+      transition={{ type: "spring", stiffness: 340, damping: 18, mass: 0.7 }}
+    >
+      <LockIcon open={phase !== "authorized"} reduce={reduce} />
+    </motion.span>
+  );
+}
 
 function DepositPanel({
   jobId,
@@ -529,16 +587,33 @@ function DepositPanel({
   onChange: () => void;
   onCaptured?: () => void;
 }) {
+  const reduce = !!useReducedMotion();
   const [busy, setBusy] = useState<string | null>(null);
   const [err, setErr] = useState<string | null>(null);
   const [note, setNote] = useState("");
+  // Local phases play an animation before the server data catches up.
+  const [local, setLocal] = useState<"opening" | "released" | null>(null);
 
-  async function act(key: string, fn: () => Promise<void>) {
+  // Only drop the lock and glow when we watched it go from created to authorized.
+  // Reloading a page that is already on hold stays calm.
+  const prevStatus = useRef(deposit?.status);
+  const [justAuthorized, setJustAuthorized] = useState(false);
+  useEffect(() => {
+    if (prevStatus.current === "created" && deposit?.status === "authorized") {
+      setJustAuthorized(true);
+    }
+    prevStatus.current = deposit?.status;
+  }, [deposit?.status]);
+
+  const wait = (ms: number) =>
+    new Promise((r) => setTimeout(r, reduce ? 0 : ms));
+
+  async function act(key: string, fn: () => Promise<void>, refresh = true) {
     setBusy(key);
     setErr(null);
     try {
       await fn();
-      onChange();
+      if (refresh) onChange();
     } catch (e) {
       setErr(e instanceof Error ? e.message : "Something went wrong");
     } finally {
@@ -546,18 +621,53 @@ function DepositPanel({
     }
   }
 
+  const capture = () =>
+    act(
+      "capture",
+      async () => {
+        await apiPost(`/deposits/${deposit!.id}/capture`);
+        setLocal("opening");
+        await wait(450); // let the lock open before the overlay covers it
+        onCaptured?.();
+        onChange();
+      },
+      false,
+    );
+
+  const release = () =>
+    act(
+      "void",
+      async () => {
+        await apiPost(`/deposits/${deposit!.id}/void`);
+        setLocal("released");
+        await wait(900); // show the strip, then collapse
+        onChange();
+      },
+      false,
+    );
+
   if (deposit?.status === "captured") {
     return (
-      <p className="mt-3 text-sm text-guild">
+      <motion.p
+        initial={reduce ? false : { opacity: 0, y: 6 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.35 }}
+        className="mt-3 flex items-center gap-2 text-sm text-guild"
+      >
+        <LockIcon open reduce />
         Paid from the deposit hold and split automatically.
-      </p>
+      </motion.p>
     );
   }
 
   if (!deposit) {
     if (!canRequest) return null;
     return (
-      <div className="mt-3 rounded-md border border-dashed border-line p-3">
+      <motion.div
+        initial={reduce ? false : { opacity: 0 }}
+        animate={{ opacity: 1 }}
+        className="mt-3 rounded-md border border-dashed border-line p-3"
+      >
         <p className="text-sm text-muted">
           Want security before starting? Hold {usd(milestone.amount)} on the
           client&apos;s PayPal now. Nothing is charged until the work is
@@ -579,144 +689,151 @@ function DepositPanel({
           {busy === "request" ? "Setting up…" : "Request a deposit hold"}
         </Button>
         <ErrorText>{err}</ErrorText>
-      </div>
+      </motion.div>
     );
   }
 
-  const label = DEPOSIT_LABEL[deposit.status] ?? {
-    text: deposit.status,
-    cls: "bg-paper text-muted",
-  };
+  const phase =
+    local ?? (deposit.status === "authorized" ? "authorized" : "created");
+  const label = DEPOSIT_LABEL[phase];
+  const glow = justAuthorized && !reduce && phase === "authorized";
 
   return (
-    <div className="mt-3 rounded-md border border-seal/30 bg-seal-soft/30 p-3 text-sm">
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <span
-          className={`rounded px-1.5 py-0.5 text-xs font-semibold ${label.cls}`}
-        >
-          {label.text}
-        </span>
-        <span className="tabular-nums text-muted">
-          {usd(deposit.amount_cents)} deposit
-        </span>
-      </div>
-
-      {deposit.status === "created" && (
-        <div className="mt-3 flex flex-wrap gap-2">
-          {deposit.approve_url && (
-            <a
-              href={deposit.approve_url}
-              target="_blank"
-              rel="noreferrer"
-              className="rounded-md border border-line bg-white px-3.5 py-2 text-sm font-medium hover:bg-paper"
-            >
-              Open client approval page
-            </a>
-          )}
-          <Button
-            variant="quiet"
-            disabled={!!busy}
-            onClick={() =>
-              act("refresh", () =>
-                apiPost(`/deposits/${deposit.id}/refresh`).then(() => {}),
-              )
-            }
-          >
-            {busy === "refresh" ? "Checking PayPal…" : "Check approval"}
-          </Button>
-          {isAdmin && (
-            <Button
-              variant="danger"
-              disabled={!!busy}
-              onClick={() =>
-                act("void", () =>
-                  apiPost(`/deposits/${deposit.id}/void`).then(() => {}),
-                )
+    <motion.div
+      className="mt-3 overflow-hidden rounded-md border border-seal/30 bg-seal-soft/30 text-sm"
+      initial={false}
+      animate={
+        local === "released"
+          ? { opacity: 0, height: 0, marginTop: 0 }
+          : glow
+            ? {
+                boxShadow: [
+                  "0 0 0 0 rgba(168,122,31,0)",
+                  "0 0 0 8px rgba(168,122,31,0.18)",
+                  "0 0 0 0 rgba(168,122,31,0)",
+                ],
               }
+            : undefined
+      }
+      transition={
+        local === "released"
+          ? { duration: reduce ? 0 : 0.5, delay: reduce ? 0 : 0.4, ease: "easeInOut" }
+          : { duration: 1.1, ease: "easeOut" }
+      }
+    >
+      <div className="p-3">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <div className="flex items-center gap-2">
+            <StatusSeal phase={phase} dropIn={justAuthorized} reduce={reduce} />
+            <span
+              className={`rounded px-1.5 py-0.5 text-xs font-semibold ${label.cls}`}
             >
-              Cancel request
-            </Button>
-          )}
+              {label.text}
+            </span>
+          </div>
+          <span className="tabular-nums text-muted">
+            {usd(deposit.amount_cents)} deposit
+          </span>
         </div>
-      )}
 
-      {deposit.status === "authorized" && isAdmin && (
-        <>
-          <p className="mt-3 text-muted">
-            The client&apos;s money is on hold. Check the work, then capture it
-            to pay everyone, or release the hold.
-          </p>
-          <textarea
-            rows={2}
-            value={note}
-            onChange={(e) => setNote(e.target.value)}
-            className={`${inputCls} mt-2`}
-            placeholder="Optional: describe what was delivered, and the AI will check it against the scope"
-          />
-          <div className="mt-2 flex flex-wrap gap-2">
-            {note.trim().length >= 15 && (
-              <Button
-                variant="quiet"
-                disabled={!!busy}
-                onClick={() =>
-                  act("review", () =>
-                    apiPost(`/deposits/${deposit.id}/review`, { note }).then(
-                      () => {},
-                    ),
-                  )
-                }
+        {phase === "created" && (
+          <div className="mt-3 flex flex-wrap gap-2">
+            {deposit.approve_url && (
+              <a
+                href={deposit.approve_url}
+                target="_blank"
+                rel="noreferrer"
+                className="rounded-md border border-line bg-white px-3.5 py-2 text-sm font-medium hover:bg-paper"
               >
-                {busy === "review" ? "Checking…" : "Ask AI to check the work"}
-              </Button>
+                Open client approval page
+              </a>
             )}
             <Button
+              variant="quiet"
               disabled={!!busy}
               onClick={() =>
-                act("capture", () =>
-                  apiPost(`/deposits/${deposit.id}/capture`).then(() => {
-                    onCaptured?.();
-                  }),
+                act("refresh", () =>
+                  apiPost(`/deposits/${deposit.id}/refresh`).then(() => {}),
                 )
               }
             >
-              {busy === "capture" ? "Capturing…" : "Accept work and capture"}
+              {busy === "refresh" ? "Checking PayPal…" : "Check approval"}
             </Button>
-            <Button
-              variant="danger"
-              disabled={!!busy}
-              onClick={() => {
-                if (
-                  !window.confirm(
-                    "Release the hold? The client won't be charged.",
-                  )
-                )
-                  return;
-                act("void", () =>
-                  apiPost(`/deposits/${deposit.id}/void`).then(() => {}),
-                );
-              }}
-            >
-              {busy === "void" ? "Releasing…" : "Release hold"}
-            </Button>
+            {isAdmin && (
+              <Button variant="danger" disabled={!!busy} onClick={release}>
+                {busy === "void" ? "Cancelling…" : "Cancel request"}
+              </Button>
+            )}
           </div>
-        </>
-      )}
+        )}
 
-      {deposit.status === "authorized" && !isAdmin && (
-        <p className="mt-3 text-muted">
-          The client&apos;s money is on hold. A guild admin captures it once
-          the work is accepted.
-        </p>
-      )}
+        {phase === "authorized" && isAdmin && (
+          <>
+            <p className="mt-3 text-muted">
+              The client&apos;s money is on hold. Check the work, then capture
+              it to pay everyone, or release the hold.
+            </p>
+            <textarea
+              rows={2}
+              value={note}
+              onChange={(e) => setNote(e.target.value)}
+              className={`${inputCls} mt-2`}
+              placeholder="Optional: describe what was delivered, and the AI will check it against the scope"
+            />
+            <div className="mt-2 flex flex-wrap gap-2">
+              {note.trim().length >= 15 && (
+                <Button
+                  variant="quiet"
+                  disabled={!!busy}
+                  onClick={() =>
+                    act("review", () =>
+                      apiPost(`/deposits/${deposit.id}/review`, { note }).then(
+                        () => {},
+                      ),
+                    )
+                  }
+                >
+                  {busy === "review" ? "Checking…" : "Ask AI to check the work"}
+                </Button>
+              )}
+              <Button disabled={!!busy} onClick={capture}>
+                {busy === "capture" ? "Capturing…" : "Accept work and capture"}
+              </Button>
+              <Button
+                variant="danger"
+                disabled={!!busy}
+                onClick={() => {
+                  if (
+                    !window.confirm(
+                      "Release the hold? The client won't be charged.",
+                    )
+                  )
+                    return;
+                  release();
+                }}
+              >
+                {busy === "void" ? "Releasing…" : "Release hold"}
+              </Button>
+            </div>
+          </>
+        )}
 
-      {deposit.ai_verdict && (
-        <p className="mt-3 rounded-md border border-line bg-white p-3 text-xs">
-          <span className="font-semibold text-guild">AI:</span>{" "}
-          {deposit.ai_verdict}. {deposit.ai_reason}
-        </p>
-      )}
-      <ErrorText>{err}</ErrorText>
-    </div>
+        {phase === "authorized" && !isAdmin && (
+          <p className="mt-3 text-muted">
+            The client&apos;s money is on hold. A guild admin captures it once
+            the work is accepted.
+          </p>
+        )}
+
+        {deposit.ai_verdict && local !== "released" && (
+          <p className="mt-3 rounded-md border border-line bg-white p-3 text-xs">
+            <span className="font-semibold text-guild">AI:</span>{" "}
+            {deposit.ai_verdict}. {deposit.ai_reason}
+          </p>
+        )}
+        <ErrorText>{err}</ErrorText>
+      </div>
+    </motion.div>
   );
 }
 
