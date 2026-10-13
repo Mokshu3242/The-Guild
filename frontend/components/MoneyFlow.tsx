@@ -8,6 +8,7 @@ import {
   useReducedMotion,
 } from "motion/react";
 import { usd } from "@/lib/format";
+import { createPortal } from "react-dom";
 
 export interface SplitData {
   amountCents: number;
@@ -118,7 +119,9 @@ export function MoneyFlow({
         ? "Pool paid a claim"
         : "Invoice paid";
 
-  return (
+  if (typeof document === "undefined") return null;
+
+  return createPortal(
     <AnimatePresence>
       {data && (
         <motion.div
@@ -187,5 +190,5 @@ export function MoneyFlow({
         </motion.div>
       )}
     </AnimatePresence>
-  );
+  , document.body);
 }

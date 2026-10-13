@@ -1,3 +1,7 @@
+"use client";
+
+import { motion, useReducedMotion } from "motion/react";
+import { useEffect, useRef } from "react";
 import type { ButtonHTMLAttributes, ReactNode } from "react";
 
 export const inputCls =
@@ -52,10 +56,25 @@ const STATUS: Record<string, string> = {
 };
 
 export function StatusPill({ status }: { status: string }) {
+  const reduced = useReducedMotion();
+  const prev = useRef<string>(status);
+  const changed = prev.current !== status;
+
+  useEffect(() => {
+    prev.current = status;
+  }, [status]);
+
   return (
-    <span className={`inline-block rounded-full border px-2 py-0.5 text-xs font-medium ${STATUS[status] ?? STATUS.open}`}>
+    <motion.span
+      key={status}
+      initial={reduced || !changed ? false : { opacity: 0, y: -6, rotateX: -70 }}
+      animate={{ opacity: 1, y: 0, rotateX: 0 }}
+      transition={{ duration: 0.26, ease: [0.22, 1, 0.36, 1] }}
+      style={{ transformPerspective: 500, display: "inline-block" }}
+      className={`rounded-full border px-2 py-0.5 text-xs font-medium ${STATUS[status] ?? STATUS.open}`}
+    >
       {status.replaceAll("_", " ")}
-    </span>
+    </motion.span>
   );
 }
 
