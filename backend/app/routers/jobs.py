@@ -9,7 +9,8 @@ from app.services.matcher import match_job
 from app.db import get_session
 from app.deps import get_current_member
 
-from app.models import AgentAction, Job, Member, Milestone
+from app.models import AgentAction, Job, Member, Milestone, ScopeFlag
+from app.services.scope_creep import check_creep
 from app.services.scope_builder import MilestoneDraft, build_scope
 
 router = APIRouter(prefix="/jobs", tags=["jobs"])
@@ -190,3 +191,117 @@ def apply_scope(
     for m in created:
         session.refresh(m)
     return {"created": len(created), "milestones": created}
+
+class CheckMessageIn(BaseModel):
+    message: str = Field(min_length=15, max_length=4000)
+
+
+class AddonIn(BaseModel):
+    title: str | None = Field(default=None, min_length=3, max_length=200)
+    amount_cents: int | None = Field(default=None, ge=100, le=10_000_000)
+
+
+def _open_flag(session: Session, job: Job, flag_id: UUID) -> ScopeFlag:
+    flag = session.exec(select(ScopeFlag).where(ScopeFlag.id == flag_id).with_for_update()).first()
+    if not flag or flag.job_id != job.id:
+        raise HTTPException(404, "Flag not found")
+    if flag.status != "flagged":
+        raise HTTPException(400, f"This flag was already {flag.status}")
+    return flag
+
+
+@router.post("/{job_id}/scope/check")
+def check_message(
+    job_id: UUID,
+    body: CheckMessageIn,
+    me: Member = Depends(get_current_member),
+    session: Session = Depends(get_session),
+):
+    job = get_job_in_my_guild(session, job_id, me)
+    if me.id not in (job.referrer_id, job.worker_id) and me.role != "admin":
+        raise HTTPException(403, "Only the poster, the worker, or an admin can check a message")
+    if job.status not in ("open", "matched", "in_progress"):
+        raise HTTPException(400, f"Can't check messages on a job that is {job.status}")
+    try:
+        flag = check_creep(session, job, me, body.message)
+    except AIError as e:
+        session.rollback()
+        raise HTTPException(502, f"The AI couldn't review the message: {e}")
+    session.commit()
+    session.refresh(flag)
+    return flag
+
+
+@router.get("/{job_id}/scope/flags")
+def list_flags(
+    job_id: UUID,
+    me: Member = Depends(get_current_member),
+    session: Session = Depends(get_session),
+):
+    get_job_in_my_guild(session, job_id, me)
+    return session.exec(
+        select(ScopeFlag).where(ScopeFlag.job_id == job_id).order_by(ScopeFlag.created_at.desc())
+    ).all()
+
+
+@router.post("/{job_id}/scope/flags/{flag_id}/add")
+def add_from_flag(
+    job_id: UUID,
+    flag_id: UUID,
+    body: AddonIn,
+    me: Member = Depends(get_current_member),
+    session: Session = Depends(get_session),
+):
+    job = get_job_in_my_guild(session, job_id, me)
+    if job.referrer_id != me.id and me.role != "admin":
+        raise HTTPException(403, "Only the poster or an admin can add an add-on")
+    if job.status not in ("open", "matched", "in_progress"):
+        raise HTTPException(400, f"Can't add work to a job that is {job.status}")
+    flag = _open_flag(session, job, flag_id)
+
+    milestone = Milestone(
+        job_id=job.id,
+        title=(body.title or flag.suggested_title).strip(),
+        scope=flag.suggested_scope or "Add-on requested by the client",
+        amount=body.amount_cents or flag.suggested_amount_cents,
+    )
+    session.add(milestone)
+    session.flush()
+
+    flag.status = "added"
+    flag.addon_milestone_id = milestone.id
+    session.add(flag)
+    session.add(AgentAction(
+        guild_id=job.guild_id,
+        action="scope.addon_added",
+        inputs={"job_id": str(job.id), "by": me.name,
+                "edited": milestone.amount != flag.suggested_amount_cents or milestone.title != flag.suggested_title},
+        result={"title": milestone.title, "amount_cents": milestone.amount,
+                "ai_suggested_cents": flag.suggested_amount_cents},
+    ))
+    session.commit()
+    session.refresh(milestone)
+    return {"status": "added", "milestone": milestone}
+
+
+@router.post("/{job_id}/scope/flags/{flag_id}/dismiss")
+def dismiss_flag(
+    job_id: UUID,
+    flag_id: UUID,
+    me: Member = Depends(get_current_member),
+    session: Session = Depends(get_session),
+):
+    job = get_job_in_my_guild(session, job_id, me)
+    if job.referrer_id != me.id and me.role != "admin":
+        raise HTTPException(403, "Only the poster or an admin can dismiss a flag")
+    flag = _open_flag(session, job, flag_id)
+    flag.status = "dismissed"
+    session.add(flag)
+    session.add(AgentAction(
+        guild_id=job.guild_id,
+        action="scope.flag_dismissed",
+        inputs={"job_id": str(job.id), "by": me.name},
+        result={"title": flag.suggested_title, "amount_cents": flag.suggested_amount_cents},
+    ))
+    session.commit()
+    return {"status": "dismissed"}

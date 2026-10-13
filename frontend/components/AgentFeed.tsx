@@ -21,7 +21,10 @@ const WHO: Record<string, { tag: string; cls: string }> = {
   "pool.credit": { tag: "Rule", cls: "bg-seal-soft text-seal" },
   "scope.drafted": { tag: "AI", cls: "bg-guild-soft text-guild" },
   "scope.applied": { tag: "Human", cls: "bg-ink text-white" },
-    "milestone.removed": { tag: "Human", cls: "bg-ink text-white" },
+  "milestone.removed": { tag: "Human", cls: "bg-ink text-white" },
+  "scope.creep_flagged": { tag: "AI", cls: "bg-guild-soft text-guild" },
+  "scope.addon_added": { tag: "Human", cls: "bg-ink text-white" },
+  "scope.flag_dismissed": { tag: "Human", cls: "bg-ink text-white" },
 };
 
 function describe(a: Action): string {
@@ -44,33 +47,71 @@ function describe(a: Action): string {
       return `Split a client brief into ${r.milestone_count} milestones totaling ${usd(r.total_cents ?? 0)}. ${r.pricing_basis ?? ""}`;
     case "scope.applied":
       return `${i.by ?? "A member"} reviewed and added ${i.count} milestones (${usd(r.total_cents ?? 0)}).`;
-          case "milestone.removed":
+    case "milestone.removed":
       return `${i.by ?? "A member"} removed the milestone "${r.title}" (${usd(r.amount_cents ?? 0)}) before invoicing.`;
+    case "scope.creep_flagged":
+      return r.verdict === "out_of_scope"
+        ? `Spotted new work in a client message: "${r.suggested_title}", suggested at ${usd(r.suggested_amount_cents ?? 0)}. ${r.reason}`
+        : `Checked a client message: ${String(r.verdict).replaceAll("_", " ")}. ${r.reason}`;
+    case "scope.addon_added":
+      return `${i.by ?? "A member"} added "${r.title}" as a paid add-on (${usd(r.amount_cents ?? 0)})${i.edited ? `, changed from the AI's ${usd(r.ai_suggested_cents ?? 0)}` : ""}.`;
+    case "scope.flag_dismissed":
+      return `${i.by ?? "A member"} decided "${r.title}" wasn't worth charging for.`;
     default:
       return a.action;
   }
 }
 
-export function AgentFeed({ limit = 6, showRaw = false }: { limit?: number; showRaw?: boolean }) {
-  const { data, error } = useSWR<Action[]>(["agent", limit], () => apiGet<Action[]>(`/agent/actions?limit=${limit}`));
+export function AgentFeed({
+  limit = 6,
+  showRaw = false,
+}: {
+  limit?: number;
+  showRaw?: boolean;
+}) {
+  const { data, error } = useSWR<Action[]>(["agent", limit], () =>
+    apiGet<Action[]>(`/agent/actions?limit=${limit}`),
+  );
   if (error) return <p className="text-sm text-alert">{error.message}</p>;
   if (!data) return <p className="text-sm text-muted">Loading activity…</p>;
-  if (data.length === 0) return <p className="text-sm text-muted">Nothing yet. Post a job and ask the AI for a match.</p>;
+  if (data.length === 0)
+    return (
+      <p className="text-sm text-muted">
+        Nothing yet. Post a job and ask the AI for a match.
+      </p>
+    );
 
   return (
     <ol className="divide-y divide-line">
       {data.map((a) => {
-        const who = WHO[a.action] ?? { tag: "System", cls: "bg-paper text-muted" };
+        const who = WHO[a.action] ?? {
+          tag: "System",
+          cls: "bg-paper text-muted",
+        };
         return (
           <li key={a.id} className="flex gap-3 py-3 first:pt-0 last:pb-0">
-            <span className={`h-fit rounded px-1.5 py-0.5 text-xs font-semibold ${who.cls}`}>{who.tag}</span>
+            <span
+              className={`h-fit rounded px-1.5 py-0.5 text-xs font-semibold ${who.cls}`}
+            >
+              {who.tag}
+            </span>
             <div className="min-w-0 flex-1">
               <p className="text-sm">{describe(a)}</p>
-              <p className="mt-0.5 text-xs text-muted">{timeAgo(a.created_at)}</p>
+              <p className="mt-0.5 text-xs text-muted">
+                {timeAgo(a.created_at)}
+              </p>
               {showRaw && (
                 <details className="mt-2 text-xs">
-                  <summary className="cursor-pointer text-muted hover:text-ink">Show what the system saw</summary>
-                  <pre className="mt-2 overflow-x-auto rounded-md bg-paper p-3">{JSON.stringify({ inputs: a.inputs, result: a.result }, null, 2)}</pre>
+                  <summary className="cursor-pointer text-muted hover:text-ink">
+                    Show what the system saw
+                  </summary>
+                  <pre className="mt-2 overflow-x-auto rounded-md bg-paper p-3">
+                    {JSON.stringify(
+                      { inputs: a.inputs, result: a.result },
+                      null,
+                      2,
+                    )}
+                  </pre>
                 </details>
               )}
             </div>

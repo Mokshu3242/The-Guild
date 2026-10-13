@@ -188,3 +188,20 @@ class Reminder(SQLModel, table=True):
     written_by: str = "ai"  # ai or template
     sent_at: Optional[datetime] = optional_time()
     created_at: datetime = created_field()
+
+class ScopeFlag(SQLModel, table=True):
+    __tablename__ = "scope_flags"
+
+    id: UUID = Field(default_factory=uuid4, primary_key=True)
+    guild_id: UUID = Field(foreign_key="guilds.id", index=True)
+    job_id: UUID = Field(foreign_key="jobs.id", index=True)
+    client_message: str
+    checked_by: str = ""
+    verdict: str = "unclear"  # in_scope, out_of_scope, unclear
+    reason: str = ""
+    suggested_title: str = ""
+    suggested_scope: str = ""
+    suggested_amount_cents: int = 0
+    status: str = "flagged"  # flagged, noted, added, dismissed
+    addon_milestone_id: Optional[UUID] = Field(default=None, foreign_key="milestones.id")
+    created_at: datetime = created_field()
