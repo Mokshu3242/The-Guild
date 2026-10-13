@@ -10,6 +10,7 @@ import { Panel } from "./ui";
 import { SplitBar } from "./SplitBar";
 import { JobsGrid, type Job } from "./JobsGrid";
 import { AgentFeed } from "./AgentFeed";
+import { PoolBalance } from "./PoolBalance";
 
 interface Pool { pool_balance_cents: number; monthly_fee_cents: number; active_subscribers: number; plan_ready: boolean }
 interface Earnings { total_cents: number; payouts: { kind: string }[] }
@@ -17,7 +18,9 @@ interface Earnings { total_cents: number; payouts: { kind: string }[] }
 export function Dashboard({ me }: { me: Me }) {
   const { data: guild } = useGuild(me.guild_id);
   const { data: members } = useMembers(me.guild_id);
-  const { data: pool } = useSWR<Pool>("pool", () => apiGet<Pool>("/pool"));
+  const { data: pool } = useSWR<Pool>("pool", () => apiGet<Pool>("/pool"), {
+    refreshInterval: 5000,
+  });
   const { data: earnings } = useSWR<Earnings>("earnings", () => apiGet<Earnings>("/me/earnings"));
   const { data: jobs } = useSWR<Job[]>("jobs", () => apiGet<Job[]>("/jobs"));
 
@@ -37,11 +40,12 @@ export function Dashboard({ me }: { me: Me }) {
           </p>
         )}
       </div>
-
       <div className="grid gap-4 lg:grid-cols-3">
         <section className="rounded-lg bg-seal-soft p-6 ring-1 ring-seal/20 lg:col-span-1">
           <h2 className="text-sm font-medium text-seal">Safety pool</h2>
-          <p className="mt-1 font-display text-5xl font-bold tabular-nums text-ink">{usd(pool?.pool_balance_cents ?? 0)}</p>
+          <p className="mt-1 font-display text-5xl font-bold tabular-nums text-ink">
+            <PoolBalance cents={pool?.pool_balance_cents} />
+          </p>
           <p className="mt-2 text-sm text-muted">
             Covers members when a client never pays. {pool?.active_subscribers ?? 0}{" "}
             {plural(pool?.active_subscribers ?? 0, "member pays", "members pay")} {usd(pool?.monthly_fee_cents ?? 0)} a month.

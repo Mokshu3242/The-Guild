@@ -6,7 +6,7 @@ import { apiGet, apiPost, ApiError } from "@/lib/api";
 import { plural, timeAgo, usd } from "@/lib/format";
 import { useMe } from "@/lib/useMe";
 import { Button, ErrorText, Notice, Panel, StatusPill } from "@/components/ui";
-
+import { PoolBalance } from "@/components/PoolBalance";
 
 interface Pool { pool_balance_cents: number; monthly_fee_cents: number; active_subscribers: number; plan_ready: boolean }
 interface Sub { status: string; approve_url: string }
@@ -22,8 +22,12 @@ const SOURCE: Record<string, string> = {
 
 export default function PoolPage() {
   const { me } = useMe();
-  const { data: pool, mutate: refreshPool } = useSWR<Pool>("pool", () => apiGet<Pool>("/pool"));
-  const { data: txs } = useSWR<Tx[]>("pool-tx", () => apiGet<Tx[]>("/pool/transactions"));
+  const { data: pool, mutate: refreshPool } = useSWR<Pool>("pool", () => apiGet<Pool>("/pool"), {
+    refreshInterval: 5000,
+  });
+  const { data: txs } = useSWR<Tx[]>("pool-tx", () => apiGet<Tx[]>("/pool/transactions"), {
+    refreshInterval: 5000,
+  });
   const { data: sub, mutate: refreshSub } = useSWR<Sub | null>("my-sub", () =>
     apiGet<Sub>("/pool/subscription").catch((e) => {
       if (e instanceof ApiError && e.status === 404) return null;
@@ -49,8 +53,9 @@ export default function PoolPage() {
       </div>
 
       <section className="rounded-lg bg-seal-soft p-6 ring-1 ring-seal/20">
-        <p className="font-display text-5xl font-bold tabular-nums">{usd(pool?.pool_balance_cents ?? 0)}</p>
-
+        <p className="font-display text-5xl font-bold tabular-nums">
+          <PoolBalance cents={pool?.pool_balance_cents} />
+        </p>
         <p className="mt-2 text-sm text-muted">
           {pool?.active_subscribers ?? 0} {plural(pool?.active_subscribers ?? 0, "member contributes", "members contribute")}{" "}
           {usd(pool?.monthly_fee_cents ?? 0)} a month.
