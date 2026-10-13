@@ -7,7 +7,8 @@ from sqlalchemy.exc import IntegrityError
 from sqlmodel import Session, select
 
 from app.db import engine
-from app.models import Invoice, Payout, Subscription, WebhookEvent
+from app.models import Deposit, Invoice, Payout, Subscription, WebhookEvent, utcnow
+from app.services import deposits as deposits_svc
 from app.routers.pool import apply_subscription_status
 from app.services.paypal import cents_from_str
 from app.services.pool import credit_pool
@@ -56,6 +57,10 @@ def _handle_event(headers: dict, raw: bytes) -> dict:
                 _on_subscription_status(session, event)
             elif event_type == "PAYMENT.SALE.COMPLETED":
                 _on_sale_completed(session, event)
+            elif event_type == "CHECKOUT.ORDER.APPROVED":
+                _on_order_approved(session, event)
+            elif event_type == "PAYMENT.AUTHORIZATION.VOIDED":
+                _on_auth_voided(session, event)
             else:
                 logger.info("Ignoring event type %s", event_type)
             session.add(WebhookEvent(paypal_event_id=event_id, type=event_type, processed=True))
@@ -118,3 +123,18 @@ def _on_sale_completed(session: Session, event: dict) -> None:
     if not total:
         return
     credit_pool(session, sub.guild_id, cents_from_str(total), "subscription", f"sale:{resource['id']}")
+
+def _on_order_approved(session: Session, event: dict) -> None:
+    order_id = event.get("resource", {}).get("id")
+    d = session.exec(select(Deposit).where(Deposit.paypal_order_id == order_id)).first()
+    if d:
+        deposits_svc.refresh_and_authorize(session, d.id)
+
+
+def _on_auth_voided(session: Session, event: dict) -> None:
+    """Fires when an admin voids, or when PayPal expires an old hold."""
+    auth_id = event.get("resource", {}).get("id")
+    d = session.exec(select(Deposit).where(Deposit.paypal_authorization_id == auth_id)).first()
+    if d and d.status == "authorized":
+        d.status, d.voided_at = "voided", utcnow()
+        session.add(d)

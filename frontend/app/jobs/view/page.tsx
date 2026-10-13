@@ -44,6 +44,16 @@ interface SyncResult {
   worker_cents?: number;
   recovered_cents?: number;
 }
+interface DepositRow {
+  id: string;
+  milestone_id: string;
+  amount_cents: number;
+  approve_url: string;
+  status: "created" | "authorized" | "captured" | "voided";
+  ai_verdict: string;
+  ai_reason: string;
+  created_at: string;
+}
 
 export default function JobPageWrapper() {
   return (
@@ -69,6 +79,10 @@ function JobPage() {
     "invoices",
     () => apiGet<Invoice[]>("/invoices"),
   );
+  const { data: deposits, mutate: refreshDeposits } = useSWR<DepositRow[]>(
+    ["deposits", id],
+    () => apiGet<DepositRow[]>(`/deposits/for-job/${id}`),
+  );
 
   const [busy, setBusy] = useState<string | null>(null);
   const [err, setErr] = useState<string | null>(null);
@@ -92,6 +106,7 @@ function JobPage() {
     refreshJob();
     refreshMs();
     refreshInv();
+    refreshDeposits();
   };
 
   if (!job || !me) return <p className="text-muted">Loading job…</p>;
@@ -103,6 +118,10 @@ function JobPage() {
   const hasReferrer = !!job.worker_id && job.referrer_id !== job.worker_id;
   const invoiceFor = (msId: string) =>
     invoices?.find((i) => i.milestone_id === msId);
+  const depositFor = (msId: string) =>
+    deposits?.find((d) => d.milestone_id === msId && d.status !== "voided");
+  const hasActiveDeposit = (msId: string) =>
+    ["created", "authorized"].includes(depositFor(msId)?.status ?? "");
 
   const match = (assign: boolean) =>
     run(assign ? "assign" : "suggest", async () => {
@@ -164,7 +183,7 @@ function JobPage() {
         </p>
         {job.status === "disputed" && me.role === "admin" && (
           <a
-            href="/claims"
+            href="/claims/"
             className="mt-2 inline-block text-sm text-alert hover:underline"
           >
             A claim is waiting for your review
@@ -241,6 +260,7 @@ function JobPage() {
         <ul className="space-y-4">
           {(milestones ?? []).map((m) => {
             const inv = invoiceFor(m.id);
+            const held = hasActiveDeposit(m.id);
             return (
               <li key={m.id} className="rounded-md border border-line p-4">
                 <div className="flex flex-wrap items-start justify-between gap-3">
@@ -272,8 +292,19 @@ function JobPage() {
                   </div>
                 )}
 
+                {guild && job.worker_id && (
+                  <DepositPanel
+                    jobId={id}
+                    milestone={m}
+                    deposit={depositFor(m.id)}
+                    canRequest={isOwner && !inv && m.status === "pending"}
+                    isAdmin={me.role === "admin"}
+                    onChange={refreshAll}
+                  />
+                )}
+
                 <div className="mt-3 flex flex-wrap gap-2">
-                  {!inv && (isOwner || isWorker) && (
+                  {!inv && !held && (isOwner || isWorker) && (
                     <Button
                       disabled={!job.worker_id || !!busy}
                       onClick={() => sendInvoice(m.id)}
@@ -284,7 +315,7 @@ function JobPage() {
                       {busy === `send-${m.id}` ? "Sending…" : "Send invoice"}
                     </Button>
                   )}
-                  {!inv && isOwner && (
+                  {!inv && !held && isOwner && (
                     <Button
                       variant="danger"
                       disabled={!!busy}
@@ -440,6 +471,222 @@ function JobPage() {
   );
 }
 
+/* ---------------- Deposit hold ---------------- */
+
+const DEPOSIT_LABEL: Record<string, { text: string; cls: string }> = {
+  created: {
+    text: "Waiting for the client to approve",
+    cls: "bg-paper text-muted",
+  },
+  authorized: { text: "On hold, not charged yet", cls: "bg-seal-soft text-seal" },
+};
+
+function DepositPanel({
+  jobId,
+  milestone,
+  deposit,
+  canRequest,
+  isAdmin,
+  onChange,
+}: {
+  jobId: string;
+  milestone: Milestone;
+  deposit?: DepositRow;
+  canRequest: boolean;
+  isAdmin: boolean;
+  onChange: () => void;
+}) {
+  const [busy, setBusy] = useState<string | null>(null);
+  const [err, setErr] = useState<string | null>(null);
+  const [note, setNote] = useState("");
+
+  async function act(key: string, fn: () => Promise<void>) {
+    setBusy(key);
+    setErr(null);
+    try {
+      await fn();
+      onChange();
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : "Something went wrong");
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  if (deposit?.status === "captured") {
+    return (
+      <p className="mt-3 text-sm text-guild">
+        Paid from the deposit hold and split automatically.
+      </p>
+    );
+  }
+
+  if (!deposit) {
+    if (!canRequest) return null;
+    return (
+      <div className="mt-3 rounded-md border border-dashed border-line p-3">
+        <p className="text-sm text-muted">
+          Want security before starting? Hold {usd(milestone.amount)} on the
+          client&apos;s PayPal now. Nothing is charged until the work is
+          accepted.
+        </p>
+        <Button
+          variant="quiet"
+          className="mt-2"
+          disabled={!!busy}
+          onClick={() =>
+            act("request", async () => {
+              const d = await apiPost<DepositRow>(
+                `/jobs/${jobId}/milestones/${milestone.id}/deposit`,
+              );
+              if (d.approve_url) window.open(d.approve_url, "_blank");
+            })
+          }
+        >
+          {busy === "request" ? "Setting up…" : "Request a deposit hold"}
+        </Button>
+        <ErrorText>{err}</ErrorText>
+      </div>
+    );
+  }
+
+  const label = DEPOSIT_LABEL[deposit.status] ?? {
+    text: deposit.status,
+    cls: "bg-paper text-muted",
+  };
+
+  return (
+    <div className="mt-3 rounded-md border border-seal/30 bg-seal-soft/30 p-3 text-sm">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <span
+          className={`rounded px-1.5 py-0.5 text-xs font-semibold ${label.cls}`}
+        >
+          {label.text}
+        </span>
+        <span className="tabular-nums text-muted">
+          {usd(deposit.amount_cents)} deposit
+        </span>
+      </div>
+
+      {deposit.status === "created" && (
+        <div className="mt-3 flex flex-wrap gap-2">
+          {deposit.approve_url && (
+            <a
+              href={deposit.approve_url}
+              target="_blank"
+              rel="noreferrer"
+              className="rounded-md border border-line bg-white px-3.5 py-2 text-sm font-medium hover:bg-paper"
+            >
+              Open client approval page
+            </a>
+          )}
+          <Button
+            variant="quiet"
+            disabled={!!busy}
+            onClick={() =>
+              act("refresh", () =>
+                apiPost(`/deposits/${deposit.id}/refresh`).then(() => {}),
+              )
+            }
+          >
+            {busy === "refresh" ? "Checking PayPal…" : "Check approval"}
+          </Button>
+          {isAdmin && (
+            <Button
+              variant="danger"
+              disabled={!!busy}
+              onClick={() =>
+                act("void", () =>
+                  apiPost(`/deposits/${deposit.id}/void`).then(() => {}),
+                )
+              }
+            >
+              Cancel request
+            </Button>
+          )}
+        </div>
+      )}
+
+      {deposit.status === "authorized" && isAdmin && (
+        <>
+          <p className="mt-3 text-muted">
+            The client&apos;s money is on hold. Check the work, then capture it
+            to pay everyone, or release the hold.
+          </p>
+          <textarea
+            rows={2}
+            value={note}
+            onChange={(e) => setNote(e.target.value)}
+            className={`${inputCls} mt-2`}
+            placeholder="Optional: describe what was delivered, and the AI will check it against the scope"
+          />
+          <div className="mt-2 flex flex-wrap gap-2">
+            {note.trim().length >= 15 && (
+              <Button
+                variant="quiet"
+                disabled={!!busy}
+                onClick={() =>
+                  act("review", () =>
+                    apiPost(`/deposits/${deposit.id}/review`, { note }).then(
+                      () => {},
+                    ),
+                  )
+                }
+              >
+                {busy === "review" ? "Checking…" : "Ask AI to check the work"}
+              </Button>
+            )}
+            <Button
+              disabled={!!busy}
+              onClick={() =>
+                act("capture", () =>
+                  apiPost(`/deposits/${deposit.id}/capture`).then(() => {}),
+                )
+              }
+            >
+              {busy === "capture" ? "Capturing…" : "Accept work and capture"}
+            </Button>
+            <Button
+              variant="danger"
+              disabled={!!busy}
+              onClick={() => {
+                if (
+                  !window.confirm(
+                    "Release the hold? The client won't be charged.",
+                  )
+                )
+                  return;
+                act("void", () =>
+                  apiPost(`/deposits/${deposit.id}/void`).then(() => {}),
+                );
+              }}
+            >
+              {busy === "void" ? "Releasing…" : "Release hold"}
+            </Button>
+          </div>
+        </>
+      )}
+
+      {deposit.status === "authorized" && !isAdmin && (
+        <p className="mt-3 text-muted">
+          The client&apos;s money is on hold. A guild admin captures it once
+          the work is accepted.
+        </p>
+      )}
+
+      {deposit.ai_verdict && (
+        <p className="mt-3 rounded-md border border-line bg-white p-3 text-xs">
+          <span className="font-semibold text-guild">AI:</span>{" "}
+          {deposit.ai_verdict}. {deposit.ai_reason}
+        </p>
+      )}
+      <ErrorText>{err}</ErrorText>
+    </div>
+  );
+}
+
+/* ---------------- Claims ---------------- */
+
 function ClaimForm({
   invoiceId,
   onDone,
@@ -511,6 +758,8 @@ function ClaimForm({
   );
 }
 
+/* ---------------- Reminders ---------------- */
+
 interface Reminder {
   id: string;
   tier: number;
@@ -555,6 +804,8 @@ function ReminderHistory({ invoiceId }: { invoiceId: string }) {
     </details>
   );
 }
+
+/* ---------------- Scope builder ---------------- */
 
 interface DraftMilestone {
   title: string;
@@ -755,6 +1006,8 @@ function ScopeBuilder({
   );
 }
 
+/* ---------------- Scope creep ---------------- */
+
 interface ScopeFlagRow {
   id: string;
   client_message: string;
@@ -773,6 +1026,19 @@ const VERDICT: Record<string, { label: string; cls: string }> = {
   out_of_scope: { label: "New work", cls: "bg-seal-soft text-seal" },
   unclear: { label: "Unclear", cls: "bg-paper text-muted" },
 };
+
+const flagMeta = (f: ScopeFlagRow) =>
+  [
+    f.status === "added"
+      ? "added as a milestone"
+      : f.status === "dismissed"
+        ? "done for free"
+        : null,
+    f.checked_by ? `checked by ${f.checked_by}` : null,
+    timeAgo(f.created_at),
+  ]
+    .filter(Boolean)
+    .join(", ");
 
 function ScopeWatch({
   jobId,
@@ -859,17 +1125,7 @@ function ScopeWatch({
               >
                 {VERDICT[f.verdict].label}
               </span>{" "}
-              {[
-                f.status === "added"
-                  ? "added as a milestone"
-                  : f.status === "dismissed"
-                    ? "done for free"
-                    : null,
-                f.checked_by ? `checked by ${f.checked_by}` : null,
-                timeAgo(f.created_at),
-              ]
-                .filter(Boolean)
-                .join(", ")}
+              {flagMeta(f)}
             </p>
             <blockquote className="mt-2 border-l-2 border-line pl-3 text-sm">
               {f.client_message}
@@ -947,8 +1203,8 @@ function ScopeWatch({
               </div>
             ) : (
               <p className="mt-3 text-sm text-muted">
-                The job's poster or a guild admin decides whether to charge for
-                this.
+                The job&apos;s poster or a guild admin decides whether to charge
+                for this.
               </p>
             )}
           </div>
@@ -972,17 +1228,7 @@ function ScopeWatch({
                   >
                     {VERDICT[f.verdict].label}
                   </span>{" "}
-                  {[
-                    f.status === "added"
-                      ? "added as a milestone"
-                      : f.status === "dismissed"
-                        ? "done for free"
-                        : null,
-                    f.checked_by ? `checked by ${f.checked_by}` : null,
-                    timeAgo(f.created_at),
-                  ]
-                    .filter(Boolean)
-                    .join(", ")}
+                  {flagMeta(f)}
                 </p>
                 <p className="mt-1">{f.reason}</p>
               </li>

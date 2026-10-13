@@ -5,7 +5,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import text
 from app.db import engine
 from app.config import settings
-from app.routers import agent, claims, guilds, invoices, jobs, members, milestones, pool, tasks, webhooks
+from app.routers import agent, claims, deposits, guilds, invoices, jobs, members, milestones, pool, tasks, webhooks
 
 logging.basicConfig(level=logging.INFO)
 
@@ -46,3 +46,4 @@ app.include_router(webhooks.router)
 app.include_router(claims.router)
 app.include_router(agent.router)
 app.include_router(tasks.router)
+app.include_router(deposits.router)

@@ -25,6 +25,11 @@ const WHO: Record<string, { tag: string; cls: string }> = {
   "scope.creep_flagged": { tag: "AI", cls: "bg-guild-soft text-guild" },
   "scope.addon_added": { tag: "Human", cls: "bg-ink text-white" },
   "scope.flag_dismissed": { tag: "Human", cls: "bg-ink text-white" },
+    "deposit.requested": { tag: "Human", cls: "bg-ink text-white" },
+  "deposit.held": { tag: "PayPal", cls: "bg-seal-soft text-seal" },
+  "deposit.reviewed": { tag: "AI", cls: "bg-guild-soft text-guild" },
+  "deposit.captured": { tag: "Human", cls: "bg-ink text-white" },
+  "deposit.voided": { tag: "Human", cls: "bg-ink text-white" },
 };
 
 function describe(a: Action): string {
@@ -57,6 +62,16 @@ function describe(a: Action): string {
       return `${i.by ?? "A member"} added "${r.title}" as a paid add-on (${usd(r.amount_cents ?? 0)})${i.edited ? `, changed from the AI's ${usd(r.ai_suggested_cents ?? 0)}` : ""}.`;
     case "scope.flag_dismissed":
       return `${i.by ?? "A member"} decided "${r.title}" wasn't worth charging for.`;
+    case "deposit.requested":
+      return `${i.by ?? "A member"} asked the client to hold ${usd(r.amount_cents ?? 0)} before work starts on "${i.milestone}".`;
+    case "deposit.held":
+      return `The client approved. ${usd(r.amount_cents ?? 0)} is on hold, not charged yet.`;
+    case "deposit.reviewed":
+      return `Checked the delivery against the scope: ${String(r.verdict)} (${Math.round((r.confidence ?? 0) * 100)}% sure). ${r.reason}`;
+    case "deposit.captured":
+      return `${i.by ?? "An admin"} accepted the work and captured ${usd(r.amount_cents ?? 0)}. The split ran automatically.`;
+    case "deposit.voided":
+      return `${i.by ?? "An admin"} released the hold. The client wasn't charged.`;
     default:
       return a.action;
   }

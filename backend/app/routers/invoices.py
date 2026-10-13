@@ -8,6 +8,7 @@ from sqlmodel import Session, select
 
 from app.db import get_session
 from app.deps import get_current_member
+from app.services.deposits import active_deposit
 from app.services import paypal_invoices
 from app.services.money import process_paid_invoice
 from app.deps import get_current_member, require_admin
@@ -50,6 +51,9 @@ def send_milestone_invoice(
         raise HTTPException(403, "Only the poster, the worker, or an admin can invoice")
     if not job.worker_id:
         raise HTTPException(400, "Assign a worker before sending an invoice")
+
+    if active_deposit(session, milestone.id):
+        raise HTTPException(400, "This milestone has a deposit hold. Capture or release it instead of invoicing.")
 
     invoice = session.exec(
         select(Invoice).where(Invoice.milestone_id == milestone.id)

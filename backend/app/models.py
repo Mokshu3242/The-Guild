@@ -205,3 +205,24 @@ class ScopeFlag(SQLModel, table=True):
     status: str = "flagged"  # flagged, noted, added, dismissed
     addon_milestone_id: Optional[UUID] = Field(default=None, foreign_key="milestones.id")
     created_at: datetime = created_field()
+
+class Deposit(SQLModel, table=True):
+    __tablename__ = "deposits"
+
+    id: UUID = Field(default_factory=uuid4, primary_key=True)
+    guild_id: UUID = Field(foreign_key="guilds.id", index=True)
+    milestone_id: UUID = Field(foreign_key="milestones.id", index=True)
+    amount_cents: int
+    paypal_order_id: str = Field(default="", index=True)
+    paypal_authorization_id: str = Field(default="", index=True)
+    paypal_capture_id: str = ""
+    approve_url: str = ""
+    status: str = "created"  # created, authorized, captured, voided
+    requested_by: str = ""
+    delivery_note: str = ""
+    ai_verdict: str = ""
+    ai_reason: str = ""
+    authorized_at: Optional[datetime] = optional_time()
+    captured_at: Optional[datetime] = optional_time()
+    voided_at: Optional[datetime] = optional_time()
+    created_at: datetime = created_field()
