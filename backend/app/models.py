@@ -190,6 +190,7 @@ class Reminder(SQLModel, table=True):
     written_by: str = "ai"  # ai or template
     sent_at: Optional[datetime] = optional_time()
     created_at: datetime = created_field()
+    risk_level: str = ""
 
 class ScopeFlag(SQLModel, table=True):
     __tablename__ = "scope_flags"

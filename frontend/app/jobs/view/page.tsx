@@ -187,7 +187,10 @@ function JobPage() {
       if (r.status === "processed") {
         const inv = invoices?.find((i) => i.id === invId);
         const ms = milestones?.find((x) => x.id === inv?.milestone_id);
-        if (ms) setSplitOverlay(splitFor(ms.amount, "invoice", r.recovered_cents ?? 0));
+        if (ms)
+          setSplitOverlay(
+            splitFor(ms.amount, "invoice", r.recovered_cents ?? 0),
+          );
         setNotice(
           `Paid. ${usd(r.worker_cents ?? 0)} sent to the worker${r.recovered_cents ? `, and ${usd(r.recovered_cents)} returned to the pool` : ""}.`,
         );
@@ -338,7 +341,9 @@ function JobPage() {
                     canRequest={isOwner && !inv && m.status === "pending"}
                     isAdmin={me.role === "admin"}
                     onChange={refreshAll}
-                    onCaptured={() => setSplitOverlay(splitFor(m.amount, "deposit"))}
+                    onCaptured={() =>
+                      setSplitOverlay(splitFor(m.amount, "deposit"))
+                    }
                   />
                 )}
 
@@ -523,12 +528,30 @@ interface RiskResult {
 
 const RISK: Record<string, { label: string; cls: string; dot: string }> = {
   low: { label: "Low risk", cls: "bg-guild-soft text-guild", dot: "bg-guild" },
-  medium: { label: "Medium risk", cls: "bg-seal-soft text-seal", dot: "bg-seal" },
-  high: { label: "High risk", cls: "bg-alert-soft text-alert", dot: "bg-alert" },
-  unknown: { label: "New client", cls: "bg-paper text-muted", dot: "bg-gray-400" },
+  medium: {
+    label: "Medium risk",
+    cls: "bg-seal-soft text-seal",
+    dot: "bg-seal",
+  },
+  high: {
+    label: "High risk",
+    cls: "bg-alert-soft text-alert",
+    dot: "bg-alert",
+  },
+  unknown: {
+    label: "New client",
+    cls: "bg-paper text-muted",
+    dot: "bg-gray-400",
+  },
 };
 
-function ClientRiskPanel({ job, onChange }: { job: Job; onChange: () => void }) {
+function ClientRiskPanel({
+  job,
+  onChange,
+}: {
+  job: Job;
+  onChange: () => void;
+}) {
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
   const [last, setLast] = useState<RiskResult | null>(null);
@@ -558,8 +581,8 @@ function ClientRiskPanel({ job, onChange }: { job: Job; onChange: () => void }) 
       {!level ? (
         <>
           <p className="text-sm text-muted">
-            Check how this client paid the guild before. The AI explains what
-            it finds. Fixed rules set the level.
+            Check how this client paid the guild before. The AI explains what it
+            finds. Fixed rules set the level.
           </p>
           {!busy && (
             <Button className="mt-3" onClick={score}>
@@ -615,7 +638,10 @@ const DEPOSIT_LABEL: Record<string, { text: string; cls: string }> = {
     text: "Waiting for the client to approve",
     cls: "bg-paper text-muted",
   },
-  authorized: { text: "On hold, not charged yet", cls: "bg-seal-soft text-seal" },
+  authorized: {
+    text: "On hold, not charged yet",
+    cls: "bg-seal-soft text-seal",
+  },
   opening: { text: "Captured", cls: "bg-guild-soft text-guild" },
   released: { text: "Released, not charged", cls: "bg-paper text-muted" },
 };
@@ -634,7 +660,9 @@ function LockIcon({ open, reduce }: { open: boolean; reduce: boolean }) {
         style={{ originX: "8px", originY: "11px" }}
         initial={false}
         animate={open ? { y: -3, rotate: -18 } : { y: 0, rotate: 0 }}
-        transition={reduce ? { duration: 0 } : { duration: 0.35, ease: SEAL_EASE }}
+        transition={
+          reduce ? { duration: 0 } : { duration: 0.35, ease: SEAL_EASE }
+        }
       />
       <rect x="5" y="11" width="14" height="10" rx="2" fill="currentColor" />
     </svg>
@@ -661,7 +689,11 @@ function StatusSeal({
     );
   }
   const color =
-    phase === "opening" ? "text-guild" : phase === "released" ? "text-muted" : "text-seal";
+    phase === "opening"
+      ? "text-guild"
+      : phase === "released"
+        ? "text-muted"
+        : "text-seal";
   return (
     <motion.span
       className={`block transition-colors duration-300 ${color}`}
@@ -821,7 +853,11 @@ function DepositPanel({
       }
       transition={
         local === "released"
-          ? { duration: reduce ? 0 : 0.5, delay: reduce ? 0 : 0.4, ease: "easeInOut" }
+          ? {
+              duration: reduce ? 0 : 0.5,
+              delay: reduce ? 0 : 0.4,
+              ease: "easeInOut",
+            }
           : { duration: 1.1, ease: "easeOut" }
       }
     >
@@ -1029,6 +1065,7 @@ interface Reminder {
   days_overdue: number;
   sent_at: string | null;
   written_by: string;
+  risk_level: string;
 }
 
 const TIER_LABEL: Record<number, string> = {
@@ -1056,6 +1093,13 @@ function ReminderHistory({ invoiceId }: { invoiceId: string }) {
               </span>
               , sent when {r.days_overdue} days overdue
               {r.written_by === "ai" ? ", written by AI" : ""}
+              {r.risk_level && r.risk_level !== "unknown" && (
+                <>
+                  {" "}
+                  · client{" "}
+                  <span className="font-medium">{r.risk_level} risk</span>
+                </>
+              )}
             </p>
             <p className="mt-1 font-medium">{r.subject}</p>
             <p className="mt-1 whitespace-pre-line text-muted">{r.body}</p>

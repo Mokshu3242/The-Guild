@@ -5,6 +5,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlmodel import Session, select
 
 from app.models import AgentAction, Invoice, Job, Milestone, Reminder, utcnow
+from app.services.client_risk import client_history, risk_level as client_risk_level
 from app.services import paypal_invoices
 from app.services.money import process_paid_invoice
 from app.services.reminder_writer import write_reminder
@@ -47,11 +48,25 @@ def remind_one(session: Session, invoice: Invoice, guild_id) -> dict:
     if tier is None:
         return {"status": "not_due", "days_overdue": days}
 
-    draft, written_by = write_reminder(session, invoice, tier, days)
+    milestone = session.get(Milestone, invoice.milestone_id)
+    job = session.get(Job, milestone.job_id)
 
-    # Reserve the tier first. The unique rule stops two runs sending the same tier.
-    reminder = Reminder(guild_id=guild_id, invoice_id=invoice.id, tier=tier,
-                        subject=draft.subject, body=draft.body, days_overdue=days, written_by=written_by)
+    # Same rule as 7A, worked out fresh. Works for the daily cron too.
+    risk = client_risk_level(client_history(session, job))
+
+    draft, written_by = write_reminder(session, invoice, tier, days, risk)
+
+    reminder = Reminder(
+        guild_id=guild_id,
+        invoice_id=invoice.id,
+        tier=tier,
+        subject=draft.subject,
+        body=draft.body,
+        days_overdue=days,
+        risk_level=risk,
+        written_by=written_by,
+    )
+
     session.add(reminder)
     try:
         session.flush()
@@ -68,8 +83,14 @@ def remind_one(session: Session, invoice: Invoice, guild_id) -> dict:
 
     reminder.sent_at = utcnow()
     session.add(AgentAction(
-        guild_id=guild_id, action="reminder.sent",
-        inputs={"invoice_id": str(invoice.id), "tier": tier, "days_overdue": days},
+        guild_id=guild_id,
+        action="reminder.sent",
+        inputs={
+            "invoice_id": str(invoice.id),
+            "tier": tier,
+            "days_overdue": days,
+            "risk_level": risk,
+        },
         result={"subject": draft.subject, "written_by": written_by},
     ))
     session.commit()

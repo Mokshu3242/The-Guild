@@ -33,6 +33,7 @@ const WHO: Record<string, { tag: string; cls: string }> = {
   "deposit.captured": { tag: "Human", cls: "bg-ink text-white" },
   "deposit.voided": { tag: "Human", cls: "bg-ink text-white" },
   "client.risk_scored": { tag: "AI", cls: "bg-guild-soft text-guild" },
+    "reminder.sent": { tag: "AI", cls: "bg-guild-soft text-guild" },
 };
 
 function describe(a: Action): string {
@@ -75,6 +76,13 @@ function describe(a: Action): string {
       return `${i.by ?? "An admin"} accepted the work and captured ${usd(r.amount_cents ?? 0)}. The split ran automatically.`;
     case "deposit.voided":
       return `${i.by ?? "An admin"} released the hold. The client wasn't charged.`;
+    case "reminder.sent": {
+      const risk =
+        i.risk_level && i.risk_level !== "unknown"
+          ? ` (client is ${i.risk_level} risk)`
+          : "";
+      return `Sent reminder ${i.tier} of 3 to a client ${i.days_overdue} days overdue${risk}: "${r.subject}"`;
+    }
     case "client.risk_scored":
       return `Scored a client as ${r.level} risk. ${r.reason ?? ""}${r.suggest_deposit ? " Suggested a deposit hold." : ""}`;
     default:
