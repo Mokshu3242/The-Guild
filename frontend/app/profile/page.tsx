@@ -3,8 +3,10 @@
 import { useEffect, useState } from "react";
 import { apiPatch } from "@/lib/api";
 import { useMe } from "@/lib/useMe";
-import { Button, ErrorText, Notice, Panel, inputCls } from "@/components/ui";
+import { Button, ErrorText, Notice, PageHeader, Panel, inputCls } from "@/components/ui";
 import { RateAdvisor } from "@/components/RateAdvisor";
+import { Avatar } from "@/components/Avatar";
+import { AvatarPicker } from "@/components/AvatarPicker";
 
 export default function ProfilePage() {
   const { me, refresh } = useMe();
@@ -47,6 +49,7 @@ export default function ProfilePage() {
           .filter(Boolean),
         hourly_rate_cents: Math.round(Number(f.rate || 0) * 100),
         available: f.available,
+        avatar_url: me.avatar_url ?? "",
       });
       await refresh();
       setNotice(
@@ -61,14 +64,19 @@ export default function ProfilePage() {
 
   return (
     <div className="mx-auto max-w-2xl space-y-6">
-      <div>
-        <h1 className="font-display text-3xl font-bold">Your profile</h1>
-        <p className="mt-2 text-muted">
-          The AI matches jobs using your skills, rate, and availability.
-        </p>
+      <div className="flex items-center gap-4">
+        <Avatar name={me.name} url={me.avatar_url} size={56} />
+        <PageHeader
+          title={me.name || "Your profile"}
+          description={`${me.role === "admin" ? "Guild admin" : "Member"}. The AI matches jobs using your skills, rate, and availability.`}
+        />
       </div>
 
-      <Panel title="Details">
+      <Panel title="Photo">
+        <AvatarPicker me={me} onSaved={refresh} />
+      </Panel>
+
+      <Panel title="Your details">
         <form onSubmit={save} className="space-y-4">
           <label className="block text-sm font-medium">
             Name
@@ -107,6 +115,7 @@ export default function ProfilePage() {
           <label className="block text-sm font-medium">
             Hourly rate in dollars
             <input
+              inputMode="numeric"
               type="number"
               min="0"
               step="1"
@@ -127,14 +136,13 @@ export default function ProfilePage() {
           </label>
           <ErrorText>{err}</ErrorText>
           <Notice>{notice}</Notice>
-          <Button disabled={busy}>{busy ? "Saving…" : "Save profile"}</Button>
+          <Button disabled={busy} className="w-full sm:w-auto">{busy ? "Saving…" : "Save profile"}</Button>
         </form>
       </Panel>
 
       <Panel title="Account">
-        <p className="text-sm text-muted">
-          Signed in as {me.email}. Role:{" "}
-          {me.role === "admin" ? "guild admin" : "member"}.
+        <p className="break-words text-sm text-muted">
+          Signed in as <span className="text-ink">{me.email}</span>.
         </p>
       </Panel>
     </div>

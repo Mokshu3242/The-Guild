@@ -5,7 +5,7 @@ import { useState } from "react";
 import { apiGet, apiPost, ApiError } from "@/lib/api";
 import { plural, timeAgo, usd } from "@/lib/format";
 import { useMe } from "@/lib/useMe";
-import { Button, ErrorText, Notice, Panel, StatusPill } from "@/components/ui";
+import { Button, ErrorText, Notice, PageHeader, Panel, StatusPill, buttonCls } from "@/components/ui";
 import { PoolBalance } from "@/components/PoolBalance";
 
 interface Pool { pool_balance_cents: number; monthly_fee_cents: number; active_subscribers: number; plan_ready: boolean }
@@ -45,33 +45,33 @@ export default function PoolPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="font-display text-3xl font-bold">Safety pool</h1>
-        <p className="mt-2 max-w-prose text-muted">
-          Shared money that covers members when a client never pays. It grows from a slice of every invoice and a small monthly fee.
-        </p>
-      </div>
+      <PageHeader
+        title="Safety pool"
+        description="Shared money that covers members when a client never pays. It grows from a slice of every invoice and a small monthly fee."
+      />
 
-      <section className="rounded-lg bg-seal-soft p-6 ring-1 ring-seal/20">
-        <p className="font-display text-5xl font-bold tabular-nums">
-          <PoolBalance cents={pool?.pool_balance_cents} />
+      <section className="rounded-2xl bg-guild-deep p-6 text-white sm:p-8">
+        <p className="text-sm text-seal-bright">In the pool now</p>
+        <p className="mt-1 font-display text-5xl font-bold tabular-nums sm:text-6xl">
+          <PoolBalance cents={pool?.pool_balance_cents} tagClassName="text-seal-bright" />
         </p>
-        <p className="mt-2 text-sm text-muted">
+        <p className="mt-3 text-sm text-white/70">
           {pool?.active_subscribers ?? 0} {plural(pool?.active_subscribers ?? 0, "member contributes", "members contribute")}{" "}
           {usd(pool?.monthly_fee_cents ?? 0)} a month.
         </p>
       </section>
 
-      <Panel title="Your membership">
+      <div className="grid gap-6 lg:grid-cols-[1fr_1.4fr]">
+      <Panel title="Your monthly contribution">
         {me?.role === "admin" && pool && !pool.plan_ready ? (
           <Button disabled={busy} onClick={() => run(async () => { await apiPost("/pool/plan"); await refreshPool(); })}>
             Set up the monthly plan in PayPal
           </Button>
         ) : sub?.status === "active" ? (
-          <p className="text-sm">You're contributing <StatusPill status="active" /></p>
+          <p className="flex items-center gap-2 text-sm">You&apos;re contributing <StatusPill status="active" /></p>
         ) : sub?.status === "pending" ? (
           <div className="flex flex-wrap gap-2">
-            <a href={sub.approve_url} target="_blank" rel="noreferrer" className="rounded-md bg-guild px-3.5 py-2 text-sm font-medium text-white">Approve in PayPal</a>
+            <a href={sub.approve_url} target="_blank" rel="noreferrer" className={buttonCls()}>Approve in PayPal</a>
             <Button variant="quiet" disabled={busy} onClick={() => run(async () => {
               const r = await apiPost<{ subscription_status: string }>("/pool/subscription/sync");
               setNotice(`Status: ${r.subscription_status}`);
@@ -95,18 +95,19 @@ export default function PoolPage() {
         {(txs ?? []).length === 0 && <p className="text-sm text-muted">No money in or out yet.</p>}
         <ul className="divide-y divide-line">
           {(txs ?? []).slice(0, 20).map((t) => (
-            <li key={t.id} className="flex items-center justify-between py-3 text-sm">
-              <div>
+            <li key={t.id} className="flex items-center justify-between gap-4 py-3 text-sm first:pt-0 last:pb-0">
+              <div className="min-w-0">
                 <p>{SOURCE[t.source] ?? t.source}</p>
                 <p className="text-xs text-muted">{timeAgo(t.created_at)}</p>
               </div>
-              <span className={`font-medium tabular-nums ${t.direction === "in" ? "text-guild" : "text-alert"}`}>
+              <span className={`shrink-0 font-medium tabular-nums ${t.direction === "in" ? "text-guild" : "text-alert"}`}>
                 {t.direction === "in" ? "+" : "−"}{usd(t.amount)}
               </span>
             </li>
           ))}
         </ul>
       </Panel>
+      </div>
     </div>
   );
 }

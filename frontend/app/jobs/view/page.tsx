@@ -208,7 +208,7 @@ function JobPage() {
     <div className="space-y-6">
       <div>
         <div className="flex flex-wrap items-center gap-3">
-          <h1 className="font-display text-3xl font-bold">{job.client_name}</h1>
+          <h1 className="min-w-0 break-words font-display text-3xl font-bold tracking-tight sm:text-4xl">{job.client_name}</h1>
           <StatusPill status={job.status} />
         </div>
         <p className="mt-1 text-sm text-muted">
@@ -302,7 +302,7 @@ function JobPage() {
             const inv = invoiceFor(m.id);
             const held = hasActiveDeposit(m.id);
             return (
-              <li key={m.id} className="rounded-md border border-line p-4">
+              <li key={m.id} className="rounded-xl border border-line p-4 sm:p-5">
                 <div className="flex flex-wrap items-start justify-between gap-3">
                   <div>
                     <p className="font-medium">
@@ -467,7 +467,7 @@ function JobPage() {
         {isOwner && (
           <form
             onSubmit={addMilestone}
-            className="mt-5 grid gap-3 border-t border-line pt-5 md:grid-cols-6"
+            className="mt-5 grid gap-3 border-t border-line pt-5 sm:grid-cols-2 md:grid-cols-6"
           >
             <input
               required

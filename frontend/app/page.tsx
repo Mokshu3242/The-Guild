@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { Logo } from "@/components/Logo";
 import { useState } from "react";
 import { createClient } from "@/lib/supabase";
 import { SplitBar } from "@/components/SplitBar";
@@ -44,20 +45,23 @@ export default function Landing() {
 
   return (
     <div className="min-h-screen">
-      <header className="mx-auto flex max-w-5xl items-center justify-between px-5 py-5">
-        <span className="font-display text-xl font-bold tracking-tight">The Guild</span>
+      <header className="mx-auto flex max-w-5xl items-center justify-between gap-3 px-4 py-5 sm:px-6">
+        <span className="flex items-center gap-2 font-display text-xl font-bold tracking-tight">
+          <Logo className="h-8 w-auto" title="" />
+          The Guild
+        </span>
         <nav className="flex items-center gap-4 text-sm">
           <Link href="/login/" className="text-muted hover:text-ink">Sign in</Link>
-          <Link href="/login/#signup" className="rounded-md bg-guild px-3.5 py-2 font-medium text-white hover:bg-guild/90">
+          <Link href="/login/#signup" className="rounded-lg bg-guild px-3.5 py-2 font-medium text-white hover:bg-guild-deep">
             Start a guild
           </Link>
         </nav>
       </header>
 
-      <main className="mx-auto max-w-5xl px-5">
-        <section className="grid items-center gap-10 py-14 lg:grid-cols-2">
+      <main className="mx-auto max-w-5xl px-4 sm:px-6">
+        <section className="grid items-center gap-10 py-10 sm:py-16 lg:grid-cols-2">
           <div>
-            <h1 className="font-display text-5xl font-bold leading-[1.05] tracking-tight sm:text-6xl">
+            <h1 className="font-display text-4xl font-bold leading-[1.05] tracking-tight sm:text-6xl">
               Freelancers, acting like a company.
             </h1>
             <p className="mt-5 max-w-md text-lg text-muted">
@@ -65,13 +69,13 @@ export default function Landing() {
             </p>
           </div>
 
-          <div className="rounded-lg border border-line bg-white p-6">
-            <p className="text-sm font-medium">When a client pays $100</p>
-            <div className="mt-4">
+          <div className="rounded-2xl bg-guild-deep p-6 text-white sm:p-8">
+            <p className="text-sm text-seal-bright">When a client pays $100</p>
+            <div className="mt-4 rounded-xl bg-white p-4 text-ink">
               <SplitBar amount={10000} workerPct={85} referrerPct={10} poolPct={5}
                 workerName="Member who did the work" referrerName="Member who brought the client" />
             </div>
-            <p className="mt-4 text-sm text-muted">Paid out through PayPal the moment the invoice clears.</p>
+            <p className="mt-4 text-sm text-white/70">Paid out through PayPal the moment the invoice clears.</p>
           </div>
         </section>
 
@@ -100,10 +104,10 @@ export default function Landing() {
             <div>
               <h2 className="font-display text-2xl font-bold">Try it with fake money</h2>
               <p className="mt-3 text-muted">Everything runs on PayPal sandbox. Step into the demo guild as one of its members:</p>
-              <div className="mt-4 grid grid-cols-3 gap-2">
+              <div className="mt-4 grid grid-cols-1 gap-2 sm:grid-cols-3">
                 {DEMO.map((d) => (
                   <button key={d.email} disabled={!!busy} onClick={() => tryAs(d.email, d.password)}
-                    className="rounded-md border border-line bg-white px-3 py-2.5 text-left hover:border-guild focus:outline-none focus-visible:ring-2 focus-visible:ring-guild/40 disabled:opacity-50">
+                    className="rounded-lg border border-line bg-white px-3 py-2.5 text-left transition-colors hover:border-guild focus:outline-none focus-visible:ring-2 focus-visible:ring-guild/40 disabled:opacity-50">
                     <span className="block text-sm font-medium">{busy === d.email ? "Opening…" : d.name}</span>
                     <span className="block text-xs text-muted">{d.role}</span>
                   </button>

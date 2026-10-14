@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { Logo } from "@/components/Logo";
 import { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase";
 import { Button, ErrorText, inputCls } from "@/components/ui";
@@ -37,15 +38,18 @@ export default function LoginPage() {
   }
 
   return (
-    <main className="grid min-h-screen place-items-center px-5 py-12">
+    <main className="grid min-h-screen place-items-center bg-paper px-4 py-12">
       <div className="w-full max-w-sm">
-        <Link href="/" className="font-display text-2xl font-bold tracking-tight">The Guild</Link>
-        <h1 className="mt-6 font-display text-3xl font-bold">
+        <Link href="/" className="inline-flex items-center gap-2 font-display text-xl font-bold tracking-tight">
+          <Logo className="h-8 w-auto" title="" />
+          The Guild
+        </Link>
+        <h1 className="mt-8 font-display text-3xl font-bold tracking-tight">
           {mode === "signin" ? "Welcome back" : "Create your account"}
         </h1>
 
         <form onSubmit={(ev) => { ev.preventDefault(); signIn(email, password, mode === "signup"); }}
-          className="mt-6 space-y-3 rounded-lg border border-line bg-white p-6">
+          className="mt-6 space-y-4 rounded-xl border border-line bg-white p-5 shadow-sm sm:p-6">
           <label className="block text-sm font-medium">
             Email
             <input type="email" required value={email} onChange={(e) => setEmail(e.target.value)} className={`${inputCls} mt-1`} />
@@ -65,10 +69,10 @@ export default function LoginPage() {
         </form>
 
         <p className="mt-6 text-sm text-muted">Or open the demo as:</p>
-        <div className="mt-2 grid grid-cols-3 gap-2">
+        <div className="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-3">
           {DEMO.map((d) => (
             <button key={d.email} disabled={busy} onClick={() => signIn(d.email, d.password)}
-              className="rounded-md border border-line bg-white px-3 py-2 text-left hover:border-guild disabled:opacity-50">
+              className="rounded-lg border border-line bg-white px-3 py-2.5 text-left transition-colors hover:border-guild focus:outline-none focus-visible:ring-2 focus-visible:ring-guild/50 disabled:opacity-50">
               <span className="block text-sm font-medium">{d.name}</span>
               <span className="block text-xs text-muted">{d.role}</span>
             </button>

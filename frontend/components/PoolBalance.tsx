@@ -8,10 +8,12 @@ import { AnimatedNumber } from "./AnimatedNumber";
 export function PoolBalance({
   cents,
   className = "",
+  tagClassName = "text-seal",
 }: {
   // Pass undefined while loading, so the first real value doesn't animate.
   cents: number | undefined;
   className?: string;
+  tagClassName?: string;
 }) {
   const reduce = useReducedMotion();
   const prev = useRef<number | null>(null);
@@ -47,7 +49,7 @@ export function PoolBalance({
             animate={{ opacity: [0, 1, 1, 0], y: -28 }}
             exit={{ opacity: 0 }}
             transition={{ duration: 1.6, times: [0, 0.15, 0.7, 1], ease: "easeOut" }}
-            className="pointer-events-none absolute left-full top-0 ml-3 whitespace-nowrap font-sans text-sm font-semibold text-seal"
+            className={`pointer-events-none absolute -top-5 right-0 whitespace-nowrap font-sans text-sm font-semibold ${tagClassName}`}
             aria-hidden="true"
           >
             +{usd(tag.delta)}

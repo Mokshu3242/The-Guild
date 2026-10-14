@@ -4,7 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { mutate } from "swr";
 import { apiPost } from "@/lib/api";
-import { Button, ErrorText, inputCls } from "@/components/ui";
+import { Button, ErrorText, PageHeader, inputCls } from "@/components/ui";
 
 export default function NewJobPage() {
   const router = useRouter();
@@ -19,7 +19,7 @@ export default function NewJobPage() {
     try {
       const job = await apiPost<{ id: string }>("/jobs", f);
       mutate("jobs");
-      router.push(`/jobs/view?id=${job.id}`);
+      router.push(`/jobs/view/?id=${job.id}`);
     } catch (e) {
       setErr(e instanceof Error ? e.message : "Couldn't post the job");
       setBusy(false);
@@ -28,9 +28,11 @@ export default function NewJobPage() {
 
   return (
     <div className="mx-auto max-w-2xl">
-      <h1 className="font-display text-3xl font-bold">Post a job you can't take</h1>
-      <p className="mt-2 text-muted">You'll earn a referral fee when the client pays whoever does it.</p>
-      <form onSubmit={submit} className="mt-6 space-y-4 rounded-lg border border-line bg-white p-6">
+      <PageHeader
+        title="Post a job you can't take"
+        description="You earn a referral fee when the client pays whoever does it."
+      />
+      <form onSubmit={submit} className="mt-6 space-y-5 rounded-xl border border-line bg-white p-5 sm:p-6">
         <label className="block text-sm font-medium">Client name
           <input required value={f.client_name} onChange={(e) => setF({ ...f, client_name: e.target.value })} className={`${inputCls} mt-1`} />
         </label>

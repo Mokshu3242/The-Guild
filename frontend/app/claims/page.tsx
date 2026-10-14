@@ -6,7 +6,7 @@ import { apiGet, apiPost } from "@/lib/api";
 import { timeAgo } from "@/lib/format";
 import { useMe } from "@/lib/useMe";
 import { useMembers } from "@/lib/useGuild";
-import { Button, ErrorText, StatusPill, inputCls } from "@/components/ui";
+import { Button, ErrorText, PageHeader, StatusPill, inputCls } from "@/components/ui";
 
 interface Claim {
   id: string; member_id: string; status: string; statement: string; evidence_urls: string[];
@@ -26,13 +26,18 @@ export default function ClaimsPage() {
     () => apiGet<Claim[]>(isAdmin ? "/claims" : "/claims/mine"));
 
   return (
-    <div className="space-y-4">
-      <h1 className="font-display text-3xl font-bold">{isAdmin ? "Claims to review" : "Your claims"}</h1>
-      <p className="max-w-prose text-muted">
-        When a client never pays, the worker can ask the safety pool to cover part of the invoice. The AI reviews every claim first. A human always decides.
-      </p>
+    <div className="space-y-6">
+      <PageHeader
+        title={isAdmin ? "Claims to review" : "Your claims"}
+        description="When a client never pays, the worker can ask the safety pool to cover part of the invoice. The AI reviews every claim first. A person always decides."
+      />
       {error && <ErrorText>{error.message}</ErrorText>}
-      {data?.length === 0 && <p className="text-sm text-muted">No claims. Nobody has been ghosted yet.</p>}
+      {data?.length === 0 && (
+        <div className="rounded-xl border border-dashed border-line bg-white px-6 py-10 text-center">
+          <p className="font-medium">No claims</p>
+          <p className="mt-1 text-sm text-muted">Nobody has been ghosted yet. If a client stops paying, open the job and choose "Client isn't paying".</p>
+        </div>
+      )}
       {(data ?? []).map((c) => (
         <ClaimCard key={c.id} c={c} isAdmin={!!isAdmin} meId={me?.id}
           memberName={members?.find((m) => m.id === c.member_id)?.name ?? "A member"} onChange={() => mutate()} />
@@ -57,7 +62,7 @@ function ClaimCard({ c, isAdmin, meId, memberName, onChange }:
   }
 
   return (
-    <article className="rounded-lg border border-line bg-white p-5">
+    <article className="rounded-xl border border-line bg-white p-5 sm:p-6">
       <header className="flex flex-wrap items-center justify-between gap-2">
         <p className="font-medium">{memberName} <span className="font-normal text-muted">filed {timeAgo(c.created_at)}</span></p>
         <StatusPill status={c.status} />
@@ -67,7 +72,7 @@ function ClaimCard({ c, isAdmin, meId, memberName, onChange }:
       {c.evidence_urls.length > 0 && <p className="mt-2 text-xs text-muted">Evidence: {c.evidence_urls.join(", ")}</p>}
 
       {c.ai_verdict && (
-        <div className="mt-4 rounded-md bg-paper p-4 text-sm">
+        <div className="mt-4 rounded-lg bg-paper p-4 text-sm">
           <p>
             <span className="rounded bg-guild-soft px-1.5 py-0.5 text-xs font-semibold text-guild">AI</span>{" "}
             recommends <span className={`font-semibold ${VERDICT[c.ai_verdict] ?? ""}`}>{c.ai_verdict.replaceAll("_", " ")}</span>

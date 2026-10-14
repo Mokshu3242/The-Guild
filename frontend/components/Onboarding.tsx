@@ -39,19 +39,19 @@ export function Onboarding() {
 
   return (
     <div className="mx-auto max-w-lg">
-      <h1 className="font-display text-3xl font-bold">Join your guild</h1>
+      <h1 className="font-display text-3xl font-bold tracking-tight">Join your guild</h1>
       <p className="mt-2 text-muted">Ask your guild admin for an invite code, or start a new guild and invite others.</p>
 
-      <div className="mt-6 inline-flex rounded-md border border-line bg-white p-1 text-sm" role="tablist">
+      <div className="mt-6 inline-flex rounded-lg border border-line bg-white p-1 text-sm" role="tablist">
         {(["join", "create"] as const).map((t) => (
           <button key={t} role="tab" aria-selected={tab === t} onClick={() => setTab(t)}
-            className={`rounded px-3 py-1.5 ${tab === t ? "bg-guild text-white" : "text-muted hover:text-ink"}`}>
+            className={`rounded-md px-3.5 py-1.5 transition-colors ${tab === t ? "bg-guild text-white" : "text-muted hover:text-ink"}`}>
             {t === "join" ? "I have a code" : "Start a guild"}
           </button>
         ))}
       </div>
 
-      <form onSubmit={submit} className="mt-4 space-y-3 rounded-lg border border-line bg-white p-6">
+      <form onSubmit={submit} className="mt-4 space-y-3 rounded-xl border border-line bg-white p-5 sm:p-6">
         {tab === "create" ? (
           <input required placeholder="Guild name, like Design Collective" value={f.guild} onChange={set("guild")} className={inputCls} />
         ) : (

@@ -51,6 +51,7 @@ class Member(SQLModel, table=True):
     skills: list[str] = Field(default_factory=list, sa_column=Column(JSON))
     hourly_rate_cents: int = 0
     available: bool = True
+    avatar_url: str = ""
     role: str = "member"  # admin or member
     joined_at: datetime = created_field()
 

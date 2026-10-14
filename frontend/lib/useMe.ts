@@ -13,6 +13,7 @@ export interface Me {
   hourly_rate_cents: number;
   available: boolean;
   role: "admin" | "member";
+  avatar_url?: string;
 }
 
 export function useMe() {
