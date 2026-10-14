@@ -7,6 +7,8 @@ import { Button, ErrorText, Notice, PageHeader, Panel, inputCls } from "@/compon
 import { RateAdvisor } from "@/components/RateAdvisor";
 import { Avatar } from "@/components/Avatar";
 import { AvatarPicker } from "@/components/AvatarPicker";
+import { TrustBadges } from "@/components/TrustBadges";
+import { ReputationCard } from "@/components/ReputationCard";
 
 export default function ProfilePage() {
   const { me, refresh } = useMe();
@@ -49,7 +51,7 @@ export default function ProfilePage() {
           .filter(Boolean),
         hourly_rate_cents: Math.round(Number(f.rate || 0) * 100),
         available: f.available,
-        avatar_url: me.avatar_url ?? "",
+        avatar_url: me?.avatar_url ?? "",
       });
       await refresh();
       setNotice(
@@ -71,6 +73,8 @@ export default function ProfilePage() {
           description={`${me.role === "admin" ? "Guild admin" : "Member"}. The AI matches jobs using your skills, rate, and availability.`}
         />
       </div>
+
+      <TrustBadges memberId={me.id} className="-mt-2" />
 
       <Panel title="Photo">
         <AvatarPicker me={me} onSaved={refresh} />
@@ -138,6 +142,10 @@ export default function ProfilePage() {
           <Notice>{notice}</Notice>
           <Button disabled={busy} className="w-full sm:w-auto">{busy ? "Saving…" : "Save profile"}</Button>
         </form>
+      </Panel>
+
+      <Panel title="Your reputation">
+        <ReputationCard memberId={me.id} name={me.name} />
       </Panel>
 
       <Panel title="Account">

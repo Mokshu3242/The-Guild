@@ -34,6 +34,7 @@ const WHO: Record<string, { tag: string; cls: string }> = {
   "deposit.captured": { tag: "Human", cls: "bg-ink text-white" },
   "deposit.voided": { tag: "Human", cls: "bg-ink text-white" },
   "client.risk_scored": { tag: "AI", cls: "bg-guild-soft text-guild" },
+  "member.reputation_summary": { tag: "AI", cls: "bg-guild-soft text-guild" },
   "reminder.sent": { tag: "AI", cls: "bg-guild-soft text-guild" },
 };
 
@@ -69,6 +70,8 @@ function describe(a: Action): string {
       return `${i.by ?? "A member"} decided "${r.title}" wasn't worth charging for.`;
     case "deposit.requested":
       return `${i.by ?? "A member"} asked the client to hold ${usd(r.amount_cents ?? 0)} before work starts on "${i.milestone}".`;
+    case "member.reputation_summary":
+      return `Wrote a reputation summary for ${i.member ?? "a member"}. ${r.summary ?? ""}`;
     case "deposit.held":
       return `The client approved. ${usd(r.amount_cents ?? 0)} is on hold, not charged yet.`;
     case "deposit.reviewed":
