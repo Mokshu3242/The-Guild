@@ -28,12 +28,13 @@ const WHO: Record<string, { tag: string; cls: string }> = {
   "scope.addon_added": { tag: "Human", cls: "bg-ink text-white" },
   "scope.flag_dismissed": { tag: "Human", cls: "bg-ink text-white" },
   "deposit.requested": { tag: "Human", cls: "bg-ink text-white" },
+  "rate.advised": { tag: "AI", cls: "bg-guild-soft text-guild" },
   "deposit.held": { tag: "PayPal", cls: "bg-seal-soft text-seal" },
   "deposit.reviewed": { tag: "AI", cls: "bg-guild-soft text-guild" },
   "deposit.captured": { tag: "Human", cls: "bg-ink text-white" },
   "deposit.voided": { tag: "Human", cls: "bg-ink text-white" },
   "client.risk_scored": { tag: "AI", cls: "bg-guild-soft text-guild" },
-    "reminder.sent": { tag: "AI", cls: "bg-guild-soft text-guild" },
+  "reminder.sent": { tag: "AI", cls: "bg-guild-soft text-guild" },
 };
 
 function describe(a: Action): string {
@@ -83,6 +84,8 @@ function describe(a: Action): string {
           : "";
       return `Sent reminder ${i.tier} of 3 to a client ${i.days_overdue} days overdue${risk}: "${r.subject}"`;
     }
+    case "rate.advised":
+      return `Compared ${i.member ?? "a member"}'s rate with the guild (${String(r.verdict ?? "").replaceAll("_", " ")}). ${r.message ?? ""}`;
     case "client.risk_scored":
       return `Scored a client as ${r.level} risk. ${r.reason ?? ""}${r.suggest_deposit ? " Suggested a deposit hold." : ""}`;
     default:

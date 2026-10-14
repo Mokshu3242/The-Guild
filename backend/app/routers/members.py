@@ -4,6 +4,7 @@ from sqlmodel import Session, select
 
 from app.db import get_session
 from app.deps import get_current_member
+from app.services.rate_advisor import advise
 from app.models import Member, Payout
 
 router = APIRouter(prefix="/me", tags=["members"])
@@ -45,3 +46,12 @@ def my_earnings(
         select(Payout).where(Payout.member_id == me.id).order_by(Payout.created_at.desc())
     ).all()
     return {"total_cents": sum(p.amount for p in payouts), "payouts": payouts}
+
+@router.post("/rate-advice")
+def rate_advice(
+    me: Member = Depends(get_current_member),
+    session: Session = Depends(get_session),
+):
+    result = advise(session, me)
+    session.commit()
+    return result
