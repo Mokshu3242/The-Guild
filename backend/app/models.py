@@ -67,6 +67,8 @@ class Job(SQLModel, table=True):
     description: str
     status: str = "open"  # open, matched, in_progress, delivered, paid, disputed
     match_reason: str = ""
+    client_risk: str = ""
+    client_risk_reason: str = ""
     created_at: datetime = created_field()
 
 

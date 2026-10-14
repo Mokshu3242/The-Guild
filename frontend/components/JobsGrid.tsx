@@ -33,6 +33,8 @@ export interface Job {
   worker_id: string | null;
   match_reason: string;
   created_at: string;
+    client_risk: string;
+  client_risk_reason: string;
 }
 
 export function JobsGrid({ jobs, members }: { jobs: Job[]; members: Me[] }) {

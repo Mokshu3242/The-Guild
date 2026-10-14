@@ -305,3 +305,24 @@ def dismiss_flag(
     ))
     session.commit()
     return {"status": "dismissed"}
+
+from app.services.ai import AIError
+from app.services.client_risk import assess_client
+
+
+@router.post("/{job_id}/risk")
+def score_risk(
+    job_id: UUID,
+    me: Member = Depends(get_current_member),
+    session: Session = Depends(get_session),
+):
+    job = get_job_in_my_guild(session, job_id, me)
+    if job.referrer_id != me.id and me.role != "admin":
+        raise HTTPException(403, "Only the poster or an admin can score this client")
+    try:
+        result = assess_client(session, job, me)
+    except AIError as e:
+        session.rollback()
+        raise HTTPException(502, f"The AI couldn't explain the score: {e}")
+    session.commit()
+    return result

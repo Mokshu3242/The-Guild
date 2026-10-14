@@ -32,6 +32,7 @@ const WHO: Record<string, { tag: string; cls: string }> = {
   "deposit.reviewed": { tag: "AI", cls: "bg-guild-soft text-guild" },
   "deposit.captured": { tag: "Human", cls: "bg-ink text-white" },
   "deposit.voided": { tag: "Human", cls: "bg-ink text-white" },
+  "client.risk_scored": { tag: "AI", cls: "bg-guild-soft text-guild" },
 };
 
 function describe(a: Action): string {
@@ -74,6 +75,8 @@ function describe(a: Action): string {
       return `${i.by ?? "An admin"} accepted the work and captured ${usd(r.amount_cents ?? 0)}. The split ran automatically.`;
     case "deposit.voided":
       return `${i.by ?? "An admin"} released the hold. The client wasn't charged.`;
+    case "client.risk_scored":
+      return `Scored a client as ${r.level} risk. ${r.reason ?? ""}${r.suggest_deposit ? " Suggested a deposit hold." : ""}`;
     default:
       return a.action;
   }
@@ -135,7 +138,12 @@ export function AgentFeed({
               className={`h-fit rounded px-1.5 py-0.5 text-xs font-semibold ${who.cls}`}
               initial={fresh ? { scale: 0.5, opacity: 0 } : false}
               animate={{ scale: 1, opacity: 1 }}
-              transition={{ delay: 0.18, type: "spring", stiffness: 420, damping: 20 }}
+              transition={{
+                delay: 0.18,
+                type: "spring",
+                stiffness: 420,
+                damping: 20,
+              }}
             >
               {who.tag}
             </motion.span>

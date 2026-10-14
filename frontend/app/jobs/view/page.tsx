@@ -221,6 +221,8 @@ function JobPage() {
         )}
       </div>
 
+      {isOwner && <ClientRiskPanel job={job} onChange={refreshJob} />}
+
       <Panel title="What the client needs">
         <p className="max-w-prose leading-relaxed">{job.description}</p>
         {job.match_reason && (
@@ -507,6 +509,102 @@ function JobPage() {
 
       <MoneyFlow data={splitOverlay} onDone={() => setSplitOverlay(null)} />
     </div>
+  );
+}
+
+/* ---------------- Client risk ---------------- */
+
+interface RiskResult {
+  level: string;
+  reason: string;
+  signals: string[];
+  suggest_deposit: boolean;
+}
+
+const RISK: Record<string, { label: string; cls: string; dot: string }> = {
+  low: { label: "Low risk", cls: "bg-guild-soft text-guild", dot: "bg-guild" },
+  medium: { label: "Medium risk", cls: "bg-seal-soft text-seal", dot: "bg-seal" },
+  high: { label: "High risk", cls: "bg-alert-soft text-alert", dot: "bg-alert" },
+  unknown: { label: "New client", cls: "bg-paper text-muted", dot: "bg-gray-400" },
+};
+
+function ClientRiskPanel({ job, onChange }: { job: Job; onChange: () => void }) {
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
+  const [last, setLast] = useState<RiskResult | null>(null);
+
+  const level = last?.level ?? job.client_risk ?? "";
+  const reason = last?.reason ?? job.client_risk_reason ?? "";
+  // Same rule as the backend, so it survives a reload.
+  const suggestDeposit = level === "medium" || level === "high";
+
+  async function score() {
+    setBusy(true);
+    setErr(null);
+    try {
+      setLast(await apiPost<RiskResult>(`/jobs/${job.id}/risk`));
+      onChange();
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : "Couldn't score the client");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  const meta = RISK[level] ?? RISK.unknown;
+
+  return (
+    <Panel title="Client risk">
+      {!level ? (
+        <>
+          <p className="text-sm text-muted">
+            Check how this client paid the guild before. The AI explains what
+            it finds. Fixed rules set the level.
+          </p>
+          {!busy && (
+            <Button className="mt-3" onClick={score}>
+              Score this client
+            </Button>
+          )}
+        </>
+      ) : (
+        <>
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <span
+              className={`flex items-center gap-2 rounded-full px-3 py-1 text-sm font-medium ${meta.cls}`}
+            >
+              <span className={`h-2 w-2 rounded-full ${meta.dot}`} />
+              {meta.label}
+            </span>
+            <Button variant="quiet" disabled={busy} onClick={score}>
+              {busy ? "Re-scoring…" : "Re-score"}
+            </Button>
+          </div>
+          {!busy && <p className="mt-3 text-sm">{reason}</p>}
+          {!busy && last?.signals && last.signals.length > 0 && (
+            <ul className="mt-2 list-disc pl-5 text-sm text-muted">
+              {last.signals.map((s, i) => (
+                <li key={i}>{s}</li>
+              ))}
+            </ul>
+          )}
+          {!busy && suggestDeposit && (
+            <p className="mt-4 rounded-md border border-seal/30 bg-seal-soft/40 p-3 text-sm">
+              <span className="font-medium text-seal">
+                Suggested: hold a deposit before work starts.
+              </span>{" "}
+              Use &quot;Request a deposit hold&quot; on a milestone below.
+            </p>
+          )}
+        </>
+      )}
+      {busy && (
+        <div className="mt-3">
+          <AiThinking label="Reading this client's past invoices and reminders…" />
+        </div>
+      )}
+      <ErrorText>{err}</ErrorText>
+    </Panel>
   );
 }
 
