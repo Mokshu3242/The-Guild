@@ -165,7 +165,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     });
     const { data: sub } = supabase.auth.onAuthStateChange((event, session) => {
       setEmail(session?.user.email ?? null);
-      if (event === "SIGNED_OUT") window.location.assign("/login/");
+      if (event === "SIGNED_OUT") window.location.assign("/");
     });
     return () => sub.subscription.unsubscribe();
   }, [isLogin, isPublic, router]);

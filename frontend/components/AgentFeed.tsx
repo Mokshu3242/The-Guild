@@ -40,6 +40,7 @@ const WHO: Record<string, { tag: string; cls: string }> = {
   "reminder.sent": { tag: "AI", cls: "bg-guild-soft text-guild" },
   "skill.gap_checked": { tag: "AI", cls: "bg-guild-soft text-guild" },
   "job.removed": { tag: "Human", cls: "bg-ink text-white" },
+  "pool.forecast": { tag: "AI", cls: "bg-guild-soft text-guild" },
 };
 
 function describe(a: Action): string {
@@ -56,6 +57,8 @@ function describe(a: Action): string {
       return `Reviewed a claim and recommended "${String(r.verdict ?? "").replaceAll("_", " ")}" (${Math.round((r.confidence ?? 0) * 100)}% confident).`;
     case "claim.paid":
       return `${i.approved_by ?? "An admin"} approved a claim. The pool paid ${usd(r.amount_cents ?? 0)}${i.partial ? `, part of the ${usd(i.cap_cents ?? 0)} cap` : ""}.${i.override ? ` Went against the AI: "${i.admin_note}"` : ""}`;
+    case "pool.forecast":
+      return `Checked the safety pool: ${r.verdict === "underfunded" ? "underfunded" : r.verdict === "watch" ? "worth watching" : "healthy"}. ${r.message ?? ""}`;
     case "claim.rejected":
       return `${i.rejected_by ?? "An admin"} rejected a claim.${i.override ? ` Went against the AI: "${i.admin_note}"` : ""}`;
     case "skill.gap_checked": {

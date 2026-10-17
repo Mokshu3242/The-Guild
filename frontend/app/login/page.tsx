@@ -40,9 +40,14 @@ export default function LoginPage() {
   return (
     <main className="grid min-h-screen place-items-center bg-paper px-4 py-12">
       <div className="w-full max-w-sm">
-        <Link href="/" className="inline-flex items-center gap-2 font-display text-xl font-bold tracking-tight">
-          <Logo className="h-8 w-auto" title="" />
-          The Guild
+        <Link
+          href="/"
+          className="mb-6 inline-flex items-center gap-1.5 rounded-md text-sm text-muted hover:text-ink focus:outline-none focus-visible:ring-2 focus-visible:ring-guild/50"
+        >
+          <svg viewBox="0 0 20 20" className="h-4 w-4" aria-hidden="true">
+            <path d="M12 5l-5 5 5 5" stroke="currentColor" strokeWidth="1.8" fill="none" strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
+          Back to home
         </Link>
         <h1 className="mt-8 font-display text-3xl font-bold tracking-tight">
           {mode === "signin" ? "Welcome back" : "Create your account"}

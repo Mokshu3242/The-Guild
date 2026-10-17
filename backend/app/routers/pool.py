@@ -13,6 +13,9 @@ from app.services import paypal_subscriptions as subs
 from app.services.paypal import cents_from_str
 from app.services.pool import credit_pool
 
+from app.models import Guild
+from app.services.pool_forecast import forecast, latest_forecast
+
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/pool", tags=["pool"])
 
@@ -217,3 +220,23 @@ def apply_subscription_status(sub: Subscription, paypal_status: str) -> None:
     if new == "active" and sub.status != "active":
         sub.activated_at = utcnow()
     sub.status = new
+
+@router.get("/forecast")
+def get_forecast(
+    me: Member = Depends(get_current_member),
+    session: Session = Depends(get_session),
+):
+    return {"forecast": latest_forecast(session, me.guild_id)}
+
+
+@router.post("/forecast")
+def make_forecast(
+    admin: Member = Depends(require_admin),
+    session: Session = Depends(get_session),
+):
+    guild = session.get(Guild, admin.guild_id)
+    if not guild:
+        raise HTTPException(404, "Guild not found")
+    result = forecast(session, guild, admin)
+    session.commit()
+    return result

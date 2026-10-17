@@ -7,6 +7,7 @@ import { plural, timeAgo, usd } from "@/lib/format";
 import { useMe } from "@/lib/useMe";
 import { Button, ErrorText, Notice, PageHeader, Panel, StatusPill, buttonCls } from "@/components/ui";
 import { PoolBalance } from "@/components/PoolBalance";
+import { PoolForecast } from "@/components/PoolForecast";
 
 interface Pool { pool_balance_cents: number; monthly_fee_cents: number; active_subscribers: number; plan_ready: boolean }
 interface Sub { status: string; approve_url: string }
@@ -60,6 +61,8 @@ export default function PoolPage() {
           {usd(pool?.monthly_fee_cents ?? 0)} a month.
         </p>
       </section>
+
+      <PoolForecast isAdmin={me?.role === "admin"} />
 
       <div className="grid gap-6 lg:grid-cols-[1fr_1.4fr]">
       <Panel title="Your monthly contribution">

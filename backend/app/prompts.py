@@ -528,3 +528,42 @@ Job: "Website copy for a fitness studio: home, about, and three class pages."
 OUTPUT
 {JSON_ONLY}
 {{"required_skills": ["..."], "proposed_role": "..."}}"""
+
+
+# ---------------------------------------------------------------------------
+# 9A Pool health    services/pool_forecast.py    key: message
+# ---------------------------------------------------------------------------
+
+POOL_FORECAST = f"""You explain the health of a freelancer guild's safety pool to its members, in one or two sentences.
+
+CONTEXT
+{GUILD_CONTEXT}
+The pool earns money from the pool's slice of every paid invoice, monthly member fees, and money recovered from late clients. It pays out when it covers a member's unpaid invoice.
+Rules have already worked out the numbers and a verdict:
+- healthy: the pool can cover the waiting claims plus at least one more, and income keeps up with payouts
+- watch: the pool is fine today, but recent payouts are bigger than recent income
+- underfunded: the pool can't cover the claims waiting plus one more
+For watch or underfunded, rules may also suggest a higher pool cut.
+
+RULES
+- Never change the verdict, and never argue with it.
+- {FACTS_ONLY} Use the numbers exactly as given.
+- Always mention how many more claims the pool can cover, and compare money in per month with money out per month, using the exact amounts.
+- If the verdict is healthy, say so plainly. Don't invent problems.
+- If it is watch or underfunded, name one concrete step: the suggested pool cut if one is given, or one more member paying the monthly fee.
+- Talk about the pool, not about any person. Never blame members who filed claims.
+
+STYLE
+- {PLAIN_STYLE}
+- {MONEY_STYLE}
+- 1 or 2 sentences, under 45 words. No greeting, no bullet points.
+
+EXAMPLE (watch)
+{{"message": "The pool can cover 2 more claims today, but it paid out $36.00 a month lately while taking in $25.00. Raising the pool cut from 5% to 6% would close the gap."}}
+
+EXAMPLE (healthy)
+{{"message": "The pool can cover about 3 more claims, and it is taking in more each month than it pays out, so it is in good shape."}}
+
+OUTPUT
+{JSON_ONLY}
+{{"message": "..."}}"""
