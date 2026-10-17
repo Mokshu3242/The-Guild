@@ -8,7 +8,11 @@ Seeds:
   - An open job, waiting for an AI match
   - A matched job with a milestone, ready to invoice
   - A paid job, already split (history)
-  - A REAL PayPal invoice to Gary Ghost, marked 10 days overdue, ready for a claim
+  - A REAL PayPal invoice to Gary Ghost, 16 days unpaid, so he scores High risk
+    and is ready for a claim
+
+Also keeps everyone's profile photo, and clears announcements and
+maintenance windows from the platform admin.
 
 Run from backend/ with the venv active:
     python -m scripts.reset_demo
@@ -25,7 +29,7 @@ from sqlmodel import Session, delete, select
 
 from app.db import engine
 from app.models import (
-    AgentAction, Claim, Deposit, Guild, Invoice, Job, Member, Milestone,
+    AgentAction, Broadcast, Claim, Deposit, Guild, Invoice, Job, MaintenanceWindow, Member, Milestone,
     Payout, PoolTx, Reminder, ScopeFlag, Subscription, WebhookEvent, utcnow,
 )
 from app.services import paypal_invoices
@@ -40,6 +44,7 @@ PEOPLE = {
 }
 CLIENT_PAYS = "client1-sb@personal.example.com"
 CLIENT_GHOSTS = "client2-sb@personal.example.com"
+GHOST_DAYS_UNPAID = 16   # over 14 days, so the 7A rule scores Gary as High risk
 
 
 def supabase_user_id(session: Session, email: str):
@@ -60,12 +65,19 @@ def remember_paypal_links(session: Session) -> dict:
         if member:
             subs.append(dict(email=member.email, paypal_id=sub.paypal_subscription_id,
                              status=sub.status, approve_url=sub.approve_url, activated_at=sub.activated_at))
-    return {"plan_id": old_guild.paypal_plan_id if old_guild else "", "subs": subs}
+    # Profile photos live in Supabase Storage. Keep the links so the navbar still shows faces.
+    avatars = {
+        mem.email: mem.avatar_url
+        for mem in session.exec(select(Member)).all()
+        if getattr(mem, "avatar_url", "")
+    }
+    return {"plan_id": old_guild.paypal_plan_id if old_guild else "", "subs": subs, "avatars": avatars}
 
 
 def wipe(session: Session) -> None:
-    for model in (ScopeFlag, Deposit, Reminder, AgentAction, Claim, Payout, PoolTx, Subscription,
-                  WebhookEvent, Invoice, Milestone, Job, Member, Guild):
+    # Children first, so no foreign key blocks a delete.
+    for model in (Broadcast, MaintenanceWindow, ScopeFlag, Deposit, Reminder, AgentAction, Claim, Payout,
+                  PoolTx, Subscription, WebhookEvent, Invoice, Milestone, Job, Member, Guild):
         session.exec(delete(model))
     session.commit()
 
@@ -90,6 +102,7 @@ def seed(session: Session, kept: dict) -> None:
             name=p["name"], email=p["email"], paypal_email=p["paypal"],
             skills=p["skills"], hourly_rate_cents=p["rate"], available=True,
             role=p["role"], joined_at=now - timedelta(days=p["days"]),
+            avatar_url=kept.get("avatars", {}).get(p["email"], ""),
         )
     session.add_all(m.values())
     session.flush()
@@ -136,7 +149,7 @@ def seed(session: Session, kept: dict) -> None:
         client_name="Gary Ghost", client_email=CLIENT_GHOSTS, status="in_progress",
         description="Website copy for a fitness studio: home, about, and three class pages.",
         match_reason="Sara is the guild's copywriter and was free that week.",
-        created_at=now - timedelta(days=14),
+        created_at=now - timedelta(days=GHOST_DAYS_UNPAID + 4),
     )
     session.add_all([active, paid, ghost])
     session.flush()
@@ -173,7 +186,7 @@ def seed(session: Session, kept: dict) -> None:
     paypal_invoices.send_invoice(pp_id)
     pay_url = paypal_invoices.payer_url(paypal_invoices.get_invoice(pp_id))
     session.add(Invoice(milestone_id=ghost_ms.id, paypal_invoice_id=pp_id, pay_url=pay_url,
-                        amount=8000, status="sent", sent_at=now - timedelta(days=10)))
+                        amount=8000, status="sent", sent_at=now - timedelta(days=GHOST_DAYS_UNPAID)))
 
     # Pool: founding contribution + the paid job's slice
     pool_entries = [
@@ -200,7 +213,8 @@ def seed(session: Session, kept: dict) -> None:
     print(f"\nSeeded {guild.name}. Invite code: {guild.invite_code}")
     print(f"Pool: ${guild.pool_balance // 100}.{guild.pool_balance % 100:02d}")
     print(f"Plan kept: {bool(kept['plan_id'])}. Subscriptions restored: {len(kept['subs'])}")
-    print(f"Gary Ghost invoice (unpaid, 10 days old): {pp_id}")
+    print(f"Profile photos kept: {len(kept.get('avatars', {}))}")
+    print(f"Gary Ghost invoice (unpaid, {GHOST_DAYS_UNPAID} days old): {pp_id}")
 
 
 if __name__ == "__main__":

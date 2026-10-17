@@ -13,6 +13,7 @@ import { useGuild } from "@/lib/useGuild";
 import { focusRing } from "./ui";
 import { Logo } from "./Logo";
 import { Avatar } from "./Avatar";
+import { BroadcastBanner, NOTICES_KEY, fetchNotices, type Notices } from "./BroadcastBanner";
 
 const NAV = [
   { href: "/overview/", label: "Home" },
@@ -147,6 +148,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = rawPath.length > 1 ? rawPath.replace(/\/$/, "") : rawPath;
   const router = useRouter();
   const isLogin = pathname === "/login";
+  const isMaintenance = pathname === "/maintenance";
+  const isPlatform = pathname.startsWith("/platform");
   const isPublic = pathname === "/" || isLogin;
   const [email, setEmail] = useState<string | null>(null);
   const [ready, setReady] = useState(false);
@@ -170,10 +173,22 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     return () => sub.subscription.unsubscribe();
   }, [isLogin, isPublic, router]);
 
+  // Full pause: send everyone to the maintenance page, and back when it ends.
+  // Platform pages stay open so the platform admin can end it.
+  const { data: notices } = useSWR<Notices>(ready && email && !isPublic ? NOTICES_KEY : null, fetchNotices, {
+    refreshInterval: 20_000,
+  });
+  const paused = notices?.maintenance?.mode === "full_pause";
+  useEffect(() => {
+    if (!notices) return;
+    if (paused && !isMaintenance && !isPlatform) router.replace("/maintenance/");
+    if (!paused && isMaintenance) router.replace("/overview/");
+  }, [notices, paused, isMaintenance, isPlatform, router]);
+
   // Close the mobile menu after navigating.
   useEffect(() => setMobileOpen(false), [pathname]);
 
-  if (isPublic) return <>{children}</>;
+  if (isPublic || isMaintenance) return <>{children}</>;
   if (!ready || !email)
     return (
       <div className="min-h-screen">
@@ -249,6 +264,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           </nav>
         )}
       </header>
+      <BroadcastBanner />
       <main className="mx-auto max-w-6xl px-4 py-8 sm:px-6 sm:py-10">{children}</main>
     </div>
   );

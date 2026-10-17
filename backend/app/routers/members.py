@@ -5,6 +5,7 @@ from sqlmodel import Session, select
 from app.db import get_session
 from app.deps import get_current_member
 from app.models import Member, Payout
+from app.services.notices import active_broadcasts, active_maintenance, upcoming_maintenance
 from app.services.rate_advisor import advise
 
 router = APIRouter(prefix="/me", tags=["members"])
@@ -70,3 +71,29 @@ def rate_advice(
     result = advise(session, me)
     session.commit()
     return result
+
+
+@router.get("/notices")
+def my_notices(
+    me: Member = Depends(get_current_member),
+    session: Session = Depends(get_session),
+):
+    """Banners for this member's guild. Always allowed, even during maintenance."""
+    m = active_maintenance(session, me.guild_id)
+    soon = None if m else upcoming_maintenance(session, me.guild_id)
+    return {
+        "broadcasts": [
+            {"id": str(b.id), "level": b.level, "title": b.title, "body": b.body}
+            for b in active_broadcasts(session, me.guild_id)
+        ],
+        "maintenance": (
+            {"id": str(m.id), "mode": m.mode, "message": m.message,
+             "ends_at": m.ends_at.isoformat() if m.ends_at else None}
+            if m else None
+        ),
+        "upcoming": (
+            {"id": str(soon.id), "mode": soon.mode, "message": soon.message,
+             "starts_at": soon.starts_at.isoformat()}
+            if soon else None
+        ),
+    }

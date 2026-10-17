@@ -235,3 +235,29 @@ class Deposit(SQLModel, table=True):
     captured_at: Optional[datetime] = optional_time()
     voided_at: Optional[datetime] = optional_time()
     created_at: datetime = created_field()
+
+class Broadcast(SQLModel, table=True):
+    __tablename__ = "broadcasts"
+
+    id: UUID = Field(default_factory=uuid4, primary_key=True)
+    guild_id: Optional[UUID] = Field(default=None, foreign_key="guilds.id", index=True)  # None = every guild
+    level: str = "info"            # info | warning | critical
+    title: str = ""
+    body: str = ""
+    starts_at: datetime = created_field()
+    ends_at: Optional[datetime] = optional_time()
+    created_by_email: str = ""
+    created_at: datetime = created_field()
+
+
+class MaintenanceWindow(SQLModel, table=True):
+    __tablename__ = "maintenance_windows"
+
+    id: UUID = Field(default_factory=uuid4, primary_key=True)
+    guild_id: Optional[UUID] = Field(default=None, foreign_key="guilds.id", index=True)  # None = every guild
+    mode: str = "read_only"        # read_only | full_pause
+    message: str = ""
+    starts_at: datetime = created_field()
+    ends_at: Optional[datetime] = optional_time()
+    created_by_email: str = ""
+    created_at: datetime = created_field()
