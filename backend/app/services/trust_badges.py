@@ -8,6 +8,8 @@ from datetime import timedelta
 from pydantic import BaseModel, Field
 from sqlmodel import Session, select
 
+from app.prompts import REPUTATION as SYSTEM
+
 from app.models import AgentAction, Member, Payout, Subscription, utcnow
 from app.services.ai import AIError, run_ai_json
 
@@ -92,16 +94,6 @@ def badges_for(session: Session, member: Member) -> list[dict]:
 
 class RepSummary(BaseModel):
     summary: str = Field(min_length=10, max_length=400)
-
-
-SYSTEM = (
-    "You write a short reputation summary of one freelancer for the other members of their guild. "
-    "Third person, present tense, warm and plain. Use only the facts given. Never invent numbers, "
-    "clients, or skills. If there are no badges, say they are new and have no track record yet. "
-    "Two sentences at most. No greeting, no signature. "
-    'Return ONLY JSON: {"summary": "..."}'
-)
-
 
 def _fallback(name: str, badges: list[dict]) -> str:
     if not badges:

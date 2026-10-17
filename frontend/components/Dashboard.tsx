@@ -11,6 +11,7 @@ import { SplitBar } from "./SplitBar";
 import { JobsGrid, type Job } from "./JobsGrid";
 import { AgentFeed } from "./AgentFeed";
 import { PoolBalance } from "./PoolBalance";
+import { Autopilot } from "./Autopilot";
 
 interface Pool { pool_balance_cents: number; monthly_fee_cents: number; active_subscribers: number; plan_ready: boolean }
 interface Earnings { total_cents: number; payouts: { kind: string }[] }
@@ -82,6 +83,8 @@ export function Dashboard({ me }: { me: Me }) {
           </div>
         ))}
       </dl>
+
+      {me.role === "admin" && <Autopilot />}
 
       <Panel
         title="Jobs"

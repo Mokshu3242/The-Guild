@@ -4,6 +4,7 @@ Rules decide the level and whether to suggest a deposit.
 The AI only explains the facts in plain words.
 """
 from pydantic import BaseModel, Field
+from app.prompts import CLIENT_RISK as SYSTEM
 from sqlmodel import Session, select
 
 from app.models import (
@@ -110,18 +111,6 @@ def risk_level(f: dict) -> str:
 
 def suggests_deposit(level: str) -> bool:
     return level in ("medium", "high")
-
-
-SYSTEM = (
-    "You explain a client's payment record to a freelancer. "
-    "The risk level is already decided by fixed rules. Do not change it or argue with it. "
-    "Use only the facts given. Never invent numbers, names, or events. "
-    "reason: one or two short plain sentences saying why the level fits. "
-    "signals: up to 4 short bullets in plain English, like 'Paid 3 of 4 invoices'. "
-    "Write money in dollars exactly as given. Skip any fact that is zero unless it matters. "
-    'Return ONLY JSON: {"reason": "...", "signals": ["..."]}'
-)
-
 
 def assess_client(session: Session, job: Job, me: Member) -> dict:
     facts = client_history(session, job)

@@ -7,6 +7,7 @@ from statistics import median
 from pydantic import BaseModel, Field
 from sqlmodel import Session, select
 
+from app.prompts import RATE_ADVICE as SYSTEM
 from app.models import AgentAction, Member
 from app.services.ai import AIError, run_ai_json
 
@@ -17,15 +18,6 @@ MIN_PEERS = 2    # fewer than this and a "median" would just be one person's rat
 
 class RateAdvice(BaseModel):
     message: str = Field(min_length=15, max_length=300)
-
-
-SYSTEM = (
-    "You give one freelancer one or two short, kind sentences about their hourly rate. "
-    "Write to them as 'you'. Never scold. Use only the numbers given. Never invent numbers. "
-    "No greeting, no signature, no bullet points. "
-    'Return ONLY JSON: {"message": "..."}'
-)
-
 
 def _skills(m: Member) -> set[str]:
     return {s.strip().lower() for s in (m.skills or []) if s and s.strip()}
