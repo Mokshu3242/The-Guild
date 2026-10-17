@@ -116,6 +116,7 @@ def forecast(session: Session, guild: Guild, by: Member) -> dict:
     try:
         message = run_ai_json(
             [{"role": "system", "content": SYSTEM}, {"role": "user", "content": prompt}],
+            feature="forecast",
             schema=ForecastMessage, temperature=0.2, max_tokens=220,
         ).message.strip()
         written_by = "ai"

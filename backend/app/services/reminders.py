@@ -8,6 +8,8 @@ from app.models import AgentAction, Invoice, Job, Milestone, Reminder, utcnow
 from app.services.client_risk import client_history, risk_level as client_risk_level
 from app.services import paypal_invoices
 from app.services.money import process_paid_invoice
+from app.services.notices import is_suspended
+from app.services.platform_settings import reminders_enabled
 from app.services.reminder_writer import write_reminder
 
 logger = logging.getLogger(__name__)
@@ -38,6 +40,7 @@ def remind_one(session: Session, invoice: Invoice, guild_id) -> dict:
         return {"status": "skipped", "reason": f"invoice is {invoice.status}"}
 
     # Did they actually pay? Don't nag a paying client.
+    # Runs even when reminders are paused, so money is never missed.
     if paypal_invoices.get_invoice(invoice.paypal_invoice_id).get("status") == "PAID":
         result = process_paid_invoice(session, invoice.id, source="reminder_check")
         session.commit()
@@ -47,6 +50,12 @@ def remind_one(session: Session, invoice: Invoice, guild_id) -> dict:
     tier = next_tier(session, invoice, days)
     if tier is None:
         return {"status": "not_due", "days_overdue": days}
+
+    # Platform switches. Checked before the AI writes anything.
+    if not reminders_enabled(session):
+        return {"status": "paused", "reason": "Reminders are paused by the platform team", "tier": tier}
+    if is_suspended(session, guild_id):
+        return {"status": "paused", "reason": "Guild is suspended", "tier": tier}
 
     milestone = session.get(Milestone, invoice.milestone_id)
     job = session.get(Job, milestone.job_id)

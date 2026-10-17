@@ -61,7 +61,8 @@ def _check_paypal() -> dict:
 def _check_ai() -> dict:
     start = time.perf_counter()
     try:
-        run_ai([{"role": "user", "content": "Reply with the single word ok."}], temperature=0.0, max_tokens=5)
+        run_ai([{"role": "user", "content": "Reply with the single word ok."}],
+       temperature=0.0, max_tokens=5, ignore_switches=True)
         ms = _ms(start)
         return {"state": _state(True, ms, "ai"), "latency_ms": ms}
     except Exception as e:

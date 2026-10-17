@@ -92,6 +92,7 @@ def advise(session: Session, me: Member) -> dict:
         message = run_ai_json(
             [{"role": "system", "content": SYSTEM}, {"role": "user", "content": prompt}],
             schema=RateAdvice,
+            feature="rate",
             temperature=0.3,
             max_tokens=200,
         ).message

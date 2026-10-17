@@ -4,7 +4,9 @@ import re
 
 import httpx
 from pydantic import BaseModel, ValidationError
-
+from sqlmodel import Session
+from app.db import engine
+from app.services.platform_settings import ai_enabled, ai_feature_disabled
 from app.config import settings
 
 logger = logging.getLogger(__name__)
@@ -24,8 +26,14 @@ def _extract_json(text: str) -> str:
         t = t[start:end + 1]
     return t.strip()
 
-
-def run_ai(messages: list[dict], temperature: float = 0.2, max_tokens: int = 800) -> str:
+def run_ai(messages: list[dict], temperature: float = 0.2, max_tokens: int = 800,
+           feature: str = "general", ignore_switches: bool = False) -> str:
+    if not ignore_switches:
+        with Session(engine) as s:
+            if not ai_enabled(s):
+                raise AIError("AI is turned off for now. Everything else still works.")
+            if feature != "general" and ai_feature_disabled(s, feature):
+                raise AIError("This AI feature is turned off for now. Everything else still works.")
     url = (
         f"https://api.cloudflare.com/client/v4/accounts/"
         f"{settings.cloudflare_account_id}/ai/run/{settings.cloudflare_ai_model}"
@@ -47,10 +55,10 @@ def run_ai(messages: list[dict], temperature: float = 0.2, max_tokens: int = 800
 
 
 def run_ai_json(messages: list[dict], schema: type[BaseModel], temperature: float = 0.1,
-                max_tokens: int = 800):
+                max_tokens: int = 800, feature: str = "general"):
     """Call the model and validate against a Pydantic schema. Retries once."""
     try:
-        raw = run_ai(messages, temperature, max_tokens)
+        raw = run_ai(messages, temperature, max_tokens, feature=feature)
         try:
             return schema.model_validate_json(_extract_json(raw))
         except ValidationError as e:
@@ -62,7 +70,7 @@ def run_ai_json(messages: list[dict], schema: type[BaseModel], temperature: floa
                     "Return ONLY the JSON object. No markdown, no extra text."
                 )},
             ]
-            raw2 = run_ai(retry, 0.0, max_tokens)
+            raw2 = run_ai(retry, 0.0, max_tokens, feature=feature)
             return schema.model_validate_json(_extract_json(raw2))
     except (httpx.HTTPError, RuntimeError, ValidationError) as e:
         raise AIError(str(e)) from e

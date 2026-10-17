@@ -1,12 +1,12 @@
 "use client";
 
-import { Suspense } from "react";
+import { Suspense, useState } from "react";
 import useSWR from "swr";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import { apiGet } from "@/lib/api";
+import { apiGet, apiPost } from "@/lib/api";
 import { timeAgo } from "@/lib/format";
-import { ErrorText, PageHeader, Panel, Skeleton } from "@/components/ui";
+import { Button, ErrorText, PageHeader, Panel, Skeleton, inputCls } from "@/components/ui";
 import { Chip, GUILD_STATUS, HEALTH, type GuildRow, useKickOutIfNotAllowed } from "@/components/PlatformBits";
 
 export default function Page() {
@@ -19,7 +19,7 @@ export default function Page() {
 
 function GuildDetail() {
   const id = useSearchParams().get("id") ?? "";
-  const { data, error } = useSWR<GuildRow>(id ? ["platform-guild", id] : null, () =>
+  const { data, error, mutate } = useSWR<GuildRow>(id ? ["platform-guild", id] : null, () =>
     apiGet<GuildRow>(`/platform/guilds/${id}`),
   { shouldRetryOnError: false });
   const blocked = useKickOutIfNotAllowed(error);
@@ -84,11 +84,63 @@ function GuildDetail() {
             </dl>
           </Panel>
 
+          <SuspendBox guild={data} onDone={() => mutate()} />
+
           <p className="text-sm text-muted">
-            This page is read only. Money, claims, and members are managed inside the guild by its own admin.
+            Apart from suspending, this page is read only. Money, claims, and members are managed inside the guild by its own admin.
           </p>
         </>
       )}
     </div>
+  );
+}
+
+function SuspendBox({ guild, onDone }: { guild: GuildRow; onDone: () => void }) {
+  const suspended = guild.status === "suspended";
+  const [reason, setReason] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
+
+  async function go() {
+    if (!suspended && !window.confirm(`Suspend ${guild.name}? Members lose access until you restore it.`)) return;
+    setBusy(true);
+    setErr(null);
+    try {
+      await apiPost(`/platform/guilds/${guild.id}/suspend`, { suspend: !suspended, reason: reason.trim() });
+      setReason("");
+      onDone();
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : "Could not change status");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <Panel title={suspended ? "This guild is suspended" : "Suspend this guild"}>
+      <p className="text-sm text-muted">
+        {suspended
+          ? "Members see a paused screen. Client payments and payouts still go through."
+          : "Only for abuse. Members are locked out, but money keeps moving: client payments, splits and payouts are untouched."}
+      </p>
+      <div className="mt-3 flex flex-col gap-2 sm:flex-row">
+        <input
+          value={reason}
+          onChange={(e) => setReason(e.target.value)}
+          maxLength={300}
+          placeholder={suspended ? "Note (optional)" : "Reason (required)"}
+          className={inputCls}
+        />
+        <Button
+          variant={suspended ? "primary" : "danger"}
+          disabled={busy || (!suspended && reason.trim().length < 3)}
+          onClick={go}
+          className="shrink-0"
+        >
+          {busy ? "Saving…" : suspended ? "Restore access" : "Suspend"}
+        </Button>
+      </div>
+      <ErrorText>{err}</ErrorText>
+    </Panel>
   );
 }

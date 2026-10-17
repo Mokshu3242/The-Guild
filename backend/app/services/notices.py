@@ -9,14 +9,17 @@ import time
 from fastapi import HTTPException
 from sqlmodel import Session, or_, select
 
-from app.models import Broadcast, MaintenanceWindow, utcnow
+from app.models import Broadcast, Guild, MaintenanceWindow, utcnow
 
 READ_METHODS = {"GET", "HEAD", "OPTIONS"}
 ALWAYS_ALLOWED = ("/me/notices",)   # the banner and the maintenance page must still load
 UPCOMING_HOURS = 24                 # show "maintenance starts in..." this far ahead
 CACHE_SECONDS = 5
 
+SUSPENDED_MSG = "This guild is paused by the platform team. Payments still go through. Contact support to restore access."
+
 _cache: dict = {"at": 0.0, "rows": []}
+_suspended: dict = {"at": 0.0, "ids": set()}
 
 
 def _live(model, now):
@@ -48,9 +51,25 @@ def _all_live_windows(session: Session) -> list[MaintenanceWindow]:
 
 def clear_cache() -> None:
     _cache["at"] = 0.0
+    _suspended["at"] = 0.0
+
+
+def is_suspended(session: Session, guild_id) -> bool:
+    if time.monotonic() - _suspended["at"] >= CACHE_SECONDS:
+        ids = session.exec(select(Guild.id).where(Guild.status == "suspended")).all()
+        _suspended.update(at=time.monotonic(), ids=set(ids))
+    return guild_id in _suspended["ids"]
+
+
+def _suspension_window(guild_id) -> MaintenanceWindow:
+    """A suspended guild looks like an endless full pause. Never saved to the DB."""
+    return MaintenanceWindow(guild_id=guild_id, mode="full_pause", message=SUSPENDED_MSG,
+                             starts_at=utcnow(), ends_at=None)
 
 
 def active_maintenance(session: Session, guild_id) -> MaintenanceWindow | None:
+    if is_suspended(session, guild_id):
+        return _suspension_window(guild_id)
     rows = [w for w in _all_live_windows(session) if w.guild_id is None or w.guild_id == guild_id]
     if not rows:
         return None

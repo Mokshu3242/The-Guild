@@ -58,6 +58,8 @@ EVIDENCE FILES LISTED BY MEMBER:
     verdict = run_ai_json(
         [{"role": "system", "content": SYSTEM}, {"role": "user", "content": prompt}],
         schema=ClaimVerdict,
+
+        feature="risk",
         max_tokens=700,
     )
 
@@ -121,6 +123,7 @@ def mediate_claim(session: Session, claim: Claim) -> dict:
     draft = run_ai_json(
         [{"role": "system", "content": CLAIM_MEDIATION}, {"role": "user", "content": prompt}],
         schema=MediationDraft,
+        feature="risk",
         temperature=0.2,
         max_tokens=300,
     )

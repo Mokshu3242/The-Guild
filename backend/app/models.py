@@ -261,3 +261,23 @@ class MaintenanceWindow(SQLModel, table=True):
     ends_at: Optional[datetime] = optional_time()
     created_by_email: str = ""
     created_at: datetime = created_field()
+
+class PlatformSetting(SQLModel, table=True):
+    __tablename__ = "platform_settings"
+
+    key: str = Field(primary_key=True)
+    value: dict = Field(default_factory=dict, sa_column=Column(JSON, nullable=False))
+    updated_by_email: str = ""
+    updated_at: datetime = created_field()
+
+
+class PlatformAuditLog(SQLModel, table=True):
+    __tablename__ = "platform_audit_log"
+
+    id: UUID = Field(default_factory=uuid4, primary_key=True)
+    actor_email: str = Field(default="", index=True)
+    action: str = Field(default="", index=True)   # "broadcast.create", "guild.suspend", ...
+    target_id: str = ""
+    inputs: dict = Field(default_factory=dict, sa_column=Column(JSON, nullable=False))
+    result: dict = Field(default_factory=dict, sa_column=Column(JSON, nullable=False))
+    created_at: datetime = created_field()

@@ -76,7 +76,9 @@ def write_reminder(
             [{"role": "system", "content": SYSTEM}, {"role": "user", "content": prompt}],
             schema=ReminderDraft,
             temperature=0.4,
+        
             max_tokens=500,
+            feature="reminder",
         )
         if "[" in draft.body or "[" in draft.subject:
             raise AIError("placeholder in draft")

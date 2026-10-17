@@ -129,6 +129,7 @@ def assess_client(session: Session, job: Job, me: Member) -> dict:
                 {"role": "system", "content": SYSTEM},
                 {"role": "user", "content": f"Risk level: {level}\nFacts:\n{lines}"},
             ],
+            feature="risk",
             schema=RiskWords,
             temperature=0.1,
             max_tokens=400,

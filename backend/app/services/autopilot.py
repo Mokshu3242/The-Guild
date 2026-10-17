@@ -150,6 +150,7 @@ def _ai_reasons(findings: list[dict]) -> dict[str, str]:
                 {"role": "system", "content": SYSTEM},
                 {"role": "user", "content": f"Findings:\n{bullets}\n\nWrite {len(findings)} sentences."},
             ],
+            feature="autopilot",
             schema=BatchReasons,
             temperature=0.2,
             max_tokens=900,

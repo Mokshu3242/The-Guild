@@ -50,6 +50,7 @@ def check_creep(session: Session, job: Job, me: Member, message: str) -> ScopeFl
     )
     draft = run_ai_json(
         [{"role": "system", "content": SYSTEM}, {"role": "user", "content": prompt}],
+        feature="scope",
         schema=CreepDraft, temperature=0.2, max_tokens=600,
     )
 

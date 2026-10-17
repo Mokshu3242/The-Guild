@@ -94,6 +94,7 @@ def review_delivery(session: Session, deposit_id: UUID, me: Member, note: str) -
     milestone = session.get(Milestone, d.milestone_id)
     prompt = f"Milestone: {milestone.title}\nAgreed scope: {milestone.scope or '(not written down)'}\n\nDelivery note:\n{note.strip()}"
     v = run_ai_json([{"role": "system", "content": REVIEW_SYSTEM}, {"role": "user", "content": prompt}],
+                    feature="deposit_review",
                     schema=DeliveryVerdict, temperature=0.1, max_tokens=400)
     d.delivery_note, d.ai_verdict, d.ai_reason = note.strip()[:2000], v.verdict, v.reason
     session.add(d)

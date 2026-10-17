@@ -8,6 +8,7 @@ import { timeAgo } from "@/lib/format";
 import { Button, ErrorText, Notice, PageHeader, Panel, Skeleton, focusRing, inputCls } from "@/components/ui";
 import { Chip, GUILD_STATUS, HEALTH, type GuildRow, useKickOutIfNotAllowed } from "@/components/PlatformBits";
 import { SystemStatus } from "@/components/SystemStatus";
+import { AuditLog, MemberLookup, PlatformSettings } from "@/components/PlatformControls";
 
 interface ListResponse {
   guilds: GuildRow[];
@@ -80,9 +81,16 @@ export default function PlatformPage() {
           <SystemStatus />
 
           <div className="grid gap-6 lg:grid-cols-2">
+            <PlatformSettings />
+            <MemberLookup />
+          </div>
+
+          <div className="grid gap-6 lg:grid-cols-2">
             <BroadcastComposer guilds={data.guilds} />
             <MaintenanceComposer guilds={data.guilds} />
           </div>
+
+          <AuditLog />
         </>
       )}
     </div>
