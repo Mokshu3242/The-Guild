@@ -36,6 +36,7 @@ class Guild(SQLModel, table=True):
     claim_overdue_days: int = 14   # days an invoice must be overdue
     claim_cap_pct: int = 50
     paypal_plan_id: str = ""
+    status: str = "active"   # active | maintenance | suspended
     created_at: datetime = created_field()
 
 

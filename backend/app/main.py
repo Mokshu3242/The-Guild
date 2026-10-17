@@ -7,6 +7,8 @@ from app.db import engine
 from app.config import settings
 from app.routers import autopilot
 from app.routers import agent, claims, deposits, guilds, invoices, jobs, members, milestones, pool, tasks, webhooks, member_badges
+from app.routers import platform
+
 
 logging.basicConfig(level=logging.INFO)
 
@@ -50,3 +52,4 @@ app.include_router(tasks.router)
 app.include_router(deposits.router)
 app.include_router(member_badges.router)
 app.include_router(autopilot.router)
+app.include_router(platform.router)

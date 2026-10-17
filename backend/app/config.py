@@ -27,5 +27,7 @@ class Settings(BaseSettings):
     public_base_url: str = "http://127.0.0.1:8000"
     task_secret: str = ""
 
+    platform_admins: str = ""   # comma-separated emails
+
 
 settings = Settings()
