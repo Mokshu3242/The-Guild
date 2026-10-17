@@ -7,6 +7,7 @@ import { apiGet, apiPost } from "@/lib/api";
 import { timeAgo } from "@/lib/format";
 import { Button, ErrorText, Notice, PageHeader, Panel, Skeleton, focusRing, inputCls } from "@/components/ui";
 import { Chip, GUILD_STATUS, HEALTH, type GuildRow, useKickOutIfNotAllowed } from "@/components/PlatformBits";
+import { SystemStatus } from "@/components/SystemStatus";
 
 interface ListResponse {
   guilds: GuildRow[];
@@ -75,6 +76,8 @@ export default function PlatformPage() {
               </ul>
             )}
           </Panel>
+
+          <SystemStatus />
 
           <div className="grid gap-6 lg:grid-cols-2">
             <BroadcastComposer guilds={data.guilds} />
@@ -250,19 +253,13 @@ function BroadcastComposer({ guilds }: { guilds: GuildRow[] }) {
 
 function MaintenanceComposer({ guilds }: { guilds: GuildRow[] }) {
   const { data: rows, mutate } = useSWR<Row[]>("platform-maintenance", () => apiGet<Row[]>("/platform/maintenance"));
-    const DEFAULT_MSG = {
+  const DEFAULT_MSG = {
     read_only: "We're doing some maintenance. You can look around, but changes are paused.",
     full_pause: "The Guild is down for a short maintenance. Please check back soon.",
   } as const;
-  const [f, setF] = useState<{
-    guild_id: string;
-    mode: keyof typeof DEFAULT_MSG;
-    starts: string;
-    minutes: string;
-    message: string;
-  }>({
+  const [f, setF] = useState({
     guild_id: "", mode: "read_only", starts: "0", minutes: "30",
-      message: DEFAULT_MSG.read_only,
+    message: DEFAULT_MSG.read_only,
   });
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);

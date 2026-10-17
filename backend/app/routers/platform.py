@@ -8,6 +8,7 @@ from sqlmodel import Session, select
 from app.db import get_session
 from app.deps import get_platform_admin
 from app.models import Broadcast, Guild, MaintenanceWindow, utcnow
+from app.services.health import run_health_checks
 from app.services.notices import clear_cache
 from app.services.platform import all_guilds, guild_row
 
@@ -178,3 +179,14 @@ def end_maintenance(
     session.refresh(w)
     clear_cache()
     return _out(w)
+
+
+# ---------------- System status (P2) ----------------
+
+@router.post("/health")
+def platform_health(
+    admin: dict = Depends(get_platform_admin),
+    session: Session = Depends(get_session),
+):
+    """Live check of the database, PayPal and the AI. Runs only when an admin clicks."""
+    return run_health_checks(session)
