@@ -28,6 +28,7 @@ const WHO: Record<string, { tag: string; cls: string }> = {
   "scope.addon_added": { tag: "Human", cls: "bg-ink text-white" },
   "scope.flag_dismissed": { tag: "Human", cls: "bg-ink text-white" },
   "deposit.requested": { tag: "Human", cls: "bg-ink text-white" },
+  "claim.mediated": { tag: "AI", cls: "bg-guild-soft text-guild" },
   "rate.advised": { tag: "AI", cls: "bg-guild-soft text-guild" },
   "deposit.held": { tag: "PayPal", cls: "bg-seal-soft text-seal" },
   "deposit.reviewed": { tag: "AI", cls: "bg-guild-soft text-guild" },
@@ -50,7 +51,7 @@ function describe(a: Action): string {
     case "claim.review":
       return `Reviewed a claim and recommended "${String(r.verdict ?? "").replaceAll("_", " ")}" (${Math.round((r.confidence ?? 0) * 100)}% confident).`;
     case "claim.paid":
-      return `${i.approved_by ?? "An admin"} approved a claim. The pool paid ${usd(r.amount_cents ?? 0)}.${i.override ? ` Went against the AI: "${i.admin_note}"` : ""}`;
+      return `${i.approved_by ?? "An admin"} approved a claim. The pool paid ${usd(r.amount_cents ?? 0)}${i.partial ? `, part of the ${usd(i.cap_cents ?? 0)} cap` : ""}.${i.override ? ` Went against the AI: "${i.admin_note}"` : ""}`;
     case "claim.rejected":
       return `${i.rejected_by ?? "An admin"} rejected a claim.${i.override ? ` Went against the AI: "${i.admin_note}"` : ""}`;
     case "pool.credit":
@@ -71,6 +72,8 @@ function describe(a: Action): string {
       return `${i.by ?? "A member"} decided "${r.title}" wasn't worth charging for.`;
     case "deposit.requested":
       return `${i.by ?? "A member"} asked the client to hold ${usd(r.amount_cents ?? 0)} before work starts on "${i.milestone}".`;
+    case "claim.mediated":
+      return `Suggested the pool pays ${usd(r.amount_cents ?? 0)} (${r.percent_of_cap}% of the cap). ${r.reason ?? ""}`;
     case "autopilot.scan":
       return `${i.by ?? "An admin"} ran the autopilot. It found ${r.found ?? 0} thing${r.found === 1 ? "" : "s"} to look at.`;
     case "member.reputation_summary":

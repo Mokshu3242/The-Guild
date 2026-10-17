@@ -153,6 +153,8 @@ class Claim(SQLModel, table=True):
     ai_confidence: float = 0.0
     admin_decision: str = "pending"
     admin_note: str = ""
+    ai_mediation_cents: int = 0
+    ai_mediation_reason: str = ""
     payout_id: Optional[UUID] = Field(default=None, foreign_key="payouts.id")
     created_at: datetime = created_field()
 

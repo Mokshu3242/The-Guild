@@ -6,6 +6,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
 from sqlmodel import Session, select
 
+from app.services.claim_reviewer import mediate_claim
 from app.db import get_session
 from app.deps import get_current_member, require_admin
 from app.models import AgentAction, Claim, Guild, Invoice, Job, Member, Milestone, utcnow
@@ -26,6 +27,7 @@ class CreateClaimIn(BaseModel):
 class DecisionIn(BaseModel):
     decision: Literal["approve", "reject"]
     note: str = Field(default="", max_length=1000)
+    amount_cents: int | None = Field(default=None, ge=1)
 
 
 def _claim_in_my_guild(session: Session, claim_id: UUID, me: Member) -> Claim:
@@ -172,7 +174,7 @@ def decide(
         return {"status": "rejected", "claim_id": str(claim.id), "override": override}
 
     try:
-        result = pay_claim(session, claim.id, admin, note=note, override=override)
+        result = pay_claim(session, claim.id, admin, note=note, override=override, amount_cents=body.amount_cents)
         session.commit()
         return {**result, "override": override}
     except ValueError as e:
@@ -201,3 +203,24 @@ def guild_claims(
     return session.exec(
         select(Claim).where(Claim.guild_id == admin.guild_id).order_by(Claim.created_at.desc())
     ).all()
+
+
+@router.post("/{claim_id}/mediate")
+def mediate(
+    claim_id: UUID,
+    admin: Member = Depends(require_admin),
+    session: Session = Depends(get_session),
+):
+    claim = session.get(Claim, claim_id)
+    if not claim or claim.guild_id != admin.guild_id:
+        raise HTTPException(404, "Claim not found")
+    try:
+        result = mediate_claim(session, claim)
+    except ValueError as e:
+        session.rollback()
+        raise HTTPException(400, str(e))
+    except AIError as e:
+        session.rollback()
+        raise HTTPException(502, f"The AI couldn't suggest an amount: {e}")
+    session.commit()
+    return result

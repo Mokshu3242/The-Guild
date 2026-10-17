@@ -4,8 +4,17 @@ from app.models import AgentAction, Claim, Guild, Invoice, Job, Member, Mileston
 from app.services import paypal_payouts
 
 
-def pay_claim(session: Session, claim_id, admin: Member, note: str = "", override: bool = False) -> dict:
+def pay_claim(
+    session: Session,
+    claim_id,
+    admin: Member,
+    note: str = "",
+    override: bool = False,
+    amount_cents: int | None = None,
+) -> dict:
     """Pay an approved claim from the pool. Locks the claim and guild rows.
+
+    amount_cents: pay less than the cap (the mediator's compromise). Clamped to the cap.
 
     PayPal errors are raised so the caller rolls back and nothing is recorded.
     The caller commits on success.
@@ -24,9 +33,10 @@ def pay_claim(session: Session, claim_id, admin: Member, note: str = "", overrid
     member = session.get(Member, claim.member_id)
     job = session.get(Job, session.get(Milestone, invoice.milestone_id).job_id)
 
-    amount = invoice.amount * guild.claim_cap_pct // 100
+    cap = invoice.amount * guild.claim_cap_pct // 100
+    amount = cap if amount_cents is None else min(amount_cents, cap)
     if amount <= 0:
-        raise ValueError("Claim amount is zero")
+        raise ValueError("The payout amount must be more than $0.00. Reject the claim instead.")
     if guild.pool_balance < amount:
         raise ValueError(
             f"The pool has ${guild.pool_balance // 100}.{guild.pool_balance % 100:02d}, "
@@ -61,10 +71,12 @@ def pay_claim(session: Session, claim_id, admin: Member, note: str = "", overrid
     payout.status = "sent"
     guild.pool_balance -= amount
     claim.status = "paid"
-    claim.admin_decision = "approved"
+    claim.admin_decision = "approved" if amount == cap else "approved_partial"
     claim.admin_note = note
     claim.payout_id = payout.id
-    session.add_all([payout, guild, claim])
+    # The pool covered it, so the job is settled for the guild.
+    job.status = "covered"
+    session.add_all([payout, guild, claim, job])
     session.add(PoolTx(
         guild_id=guild.id,
         amount=amount,
@@ -81,6 +93,8 @@ def pay_claim(session: Session, claim_id, admin: Member, note: str = "", overrid
             "ai_verdict": claim.ai_verdict,
             "override": override,
             "admin_note": note,
+            "cap_cents": cap,
+            "partial": amount < cap,
         },
         result={"amount_cents": amount, "pool_after": guild.pool_balance, "batch_id": batch_id},
     ))
