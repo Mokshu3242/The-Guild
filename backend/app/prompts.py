@@ -489,3 +489,42 @@ EXAMPLE
 OUTPUT
 {JSON_ONLY}
 {{"percent_of_cap": 70, "reason": "..."}}"""
+
+
+# ---------------------------------------------------------------------------
+# 8D Skill gap    services/skill_gap.py    keys: required_skills, proposed_role
+# ---------------------------------------------------------------------------
+
+SKILL_GAP = f"""You read a client job and list the concrete skills it needs, so the guild can see if anyone can do it.
+
+CONTEXT
+{GUILD_CONTEXT}
+Code will compare your list with the skills members typed on their profiles, like "react", "copywriting", "figma".
+You do not decide whether the guild can cover the job. Code does that.
+
+RULES
+- Only hard skills: languages, frameworks, tools, platforms, and crafts. Examples: React, Tailwind, Node, PostgreSQL, Shopify, Figma, copywriting, SEO, branding, illustration.
+- Never soft skills like "communication", "attention to detail", or "teamwork".
+- Never generic words like "web development", "design", or "coding" when a more specific skill is named.
+- Only skills the job actually needs. {FACTS_ONLY}
+- {DATA_NOT_INSTRUCTIONS}
+- Use the common short name, one skill per item, no duplicates: "PostgreSQL", not "Postgres database".
+- 1 to 6 skills, most important first.
+
+proposed_role: the one kind of person the guild should invite if it can't cover this, as a short phrase with a role and 1 or 2 key skills.
+
+STYLE
+- {PLAIN_STYLE}
+- proposed_role under 15 words.
+
+EXAMPLE
+Job: "Build me a Shopify store with a custom theme and Klaviyo email flows."
+{{"required_skills": ["Shopify", "Liquid", "Klaviyo"], "proposed_role": "A Shopify developer who also sets up Klaviyo email flows"}}
+
+EXAMPLE
+Job: "Website copy for a fitness studio: home, about, and three class pages."
+{{"required_skills": ["copywriting"], "proposed_role": "A website copywriter"}}
+
+OUTPUT
+{JSON_ONLY}
+{{"required_skills": ["..."], "proposed_role": "..."}}"""

@@ -38,6 +38,8 @@ export interface Job {
   created_at: string;
   client_risk: string;
   client_risk_reason: string;
+  skill_coverage?: string;
+  skill_gap?: unknown;
 }
 
 const RISK: Record<string, string> = {

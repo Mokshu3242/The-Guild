@@ -4,14 +4,15 @@ from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
 from sqlmodel import Session, select
 
-from app.services.ai import AIError
-from app.services.matcher import match_job
 from app.db import get_session
 from app.deps import get_current_member
-
-from app.models import AgentAction, Job, Member, Milestone, ScopeFlag
-from app.services.scope_creep import check_creep
+from app.models import AgentAction, Deposit, Invoice, Job, Member, Milestone, ScopeFlag
+from app.services.ai import AIError
+from app.services.client_risk import assess_client
+from app.services.matcher import match_job
 from app.services.scope_builder import MilestoneDraft, build_scope
+from app.services.scope_creep import check_creep
+from app.services.skill_gap import assess_gap
 
 router = APIRouter(prefix="/jobs", tags=["jobs"])
 
@@ -306,10 +307,6 @@ def dismiss_flag(
     session.commit()
     return {"status": "dismissed"}
 
-from app.services.ai import AIError
-from app.services.client_risk import assess_client
-
-
 @router.post("/{job_id}/risk")
 def score_risk(
     job_id: UUID,
@@ -326,3 +323,63 @@ def score_risk(
         raise HTTPException(502, f"The AI couldn't explain the score: {e}")
     session.commit()
     return result
+
+@router.post("/{job_id}/skill-gap")
+def check_skill_gap(
+    job_id: UUID,
+    me: Member = Depends(get_current_member),
+    session: Session = Depends(get_session),
+):
+    job = get_job_in_my_guild(session, job_id, me)
+    if job.referrer_id != me.id and me.role != "admin":
+        raise HTTPException(403, "Only the poster or an admin can check the skills")
+    if job.status not in ("open", "matched"):
+        raise HTTPException(400, f"Can't check skills on a job that is {job.status}")
+    try:
+        result = assess_gap(session, job, me)
+    except ValueError as e:
+        session.rollback()
+        raise HTTPException(400, str(e))
+    except AIError as e:
+        session.rollback()
+        raise HTTPException(502, f"The AI couldn't read the skills: {e}")
+    session.commit()
+    return result
+
+
+@router.delete("/{job_id}")
+def delete_job(
+    job_id: UUID,
+    me: Member = Depends(get_current_member),
+    session: Session = Depends(get_session),
+):
+    job = get_job_in_my_guild(session, job_id, me)
+    if job.referrer_id != me.id and me.role != "admin":
+        raise HTTPException(403, "Only the person who posted this job or an admin can delete it")
+
+    milestones = session.exec(select(Milestone).where(Milestone.job_id == job.id)).all()
+    ms_ids = [m.id for m in milestones]
+
+    # Once PayPal or the pool has touched a job, keep it for the record.
+    # Claims always sit on invoices, so the invoice check covers them too.
+    if ms_ids:
+        if session.exec(select(Invoice).where(Invoice.milestone_id.in_(ms_ids))).first():
+            raise HTTPException(400, "This job has invoices, so it can't be deleted. It stays for the payment record.")
+        if session.exec(select(Deposit).where(Deposit.milestone_id.in_(ms_ids))).first():
+            raise HTTPException(400, "This job has a deposit hold on record, so it can't be deleted.")
+
+    for f in session.exec(select(ScopeFlag).where(ScopeFlag.job_id == job.id)).all():
+        session.delete(f)
+    for m in milestones:
+        session.delete(m)
+    session.flush()
+
+    session.add(AgentAction(
+        guild_id=job.guild_id,
+        action="job.removed",
+        inputs={"by": me.name},
+        result={"client": job.client_name, "milestones": len(milestones)},
+    ))
+    session.delete(job)
+    session.commit()
+    return {"status": "deleted"}

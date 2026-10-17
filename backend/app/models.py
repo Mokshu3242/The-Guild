@@ -70,6 +70,8 @@ class Job(SQLModel, table=True):
     match_reason: str = ""
     client_risk: str = ""
     client_risk_reason: str = ""
+    skill_coverage: str = ""
+    skill_gap: dict | None = Field(default=None, sa_column=Column(JSON))
     created_at: datetime = created_field()
 
 

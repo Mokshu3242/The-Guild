@@ -38,6 +38,8 @@ const WHO: Record<string, { tag: string; cls: string }> = {
   "autopilot.scan": { tag: "AI", cls: "bg-guild-soft text-guild" },
   "member.reputation_summary": { tag: "AI", cls: "bg-guild-soft text-guild" },
   "reminder.sent": { tag: "AI", cls: "bg-guild-soft text-guild" },
+  "skill.gap_checked": { tag: "AI", cls: "bg-guild-soft text-guild" },
+  "job.removed": { tag: "Human", cls: "bg-ink text-white" },
 };
 
 function describe(a: Action): string {
@@ -46,6 +48,8 @@ function describe(a: Action): string {
   switch (a.action) {
     case "job.match":
       return `Matched ${r.top_name ?? "a member"} to a job${r.backup_name ? `, with ${r.backup_name} as backup` : ""}. ${r.reason ?? ""}`;
+    case "job.removed":
+      return `${i.by ?? "A member"} deleted the job for ${r.client ?? "a client"}${r.milestones ? ` and its ${r.milestones} milestone${r.milestones === 1 ? "" : "s"}` : ""}.`;
     case "invoice.paid.split":
       return `Split a ${usd(i.amount ?? 0)} payment: ${usd(r.worker_cents ?? 0)} to the worker, ${usd(r.referrer_cents ?? 0)} referral fee, ${usd(r.pool_cents ?? 0)} to the pool${r.recovered_cents ? `, and ${usd(r.recovered_cents)} recovered for the pool` : ""}.`;
     case "claim.review":
@@ -54,6 +58,19 @@ function describe(a: Action): string {
       return `${i.approved_by ?? "An admin"} approved a claim. The pool paid ${usd(r.amount_cents ?? 0)}${i.partial ? `, part of the ${usd(i.cap_cents ?? 0)} cap` : ""}.${i.override ? ` Went against the AI: "${i.admin_note}"` : ""}`;
     case "claim.rejected":
       return `${i.rejected_by ?? "An admin"} rejected a claim.${i.override ? ` Went against the AI: "${i.admin_note}"` : ""}`;
+    case "skill.gap_checked": {
+      if (r.coverage === "full") {
+        return `Checked the skills for ${i.client ?? "a job"}. The guild already has everything it needs.`;
+      }
+      const missing =
+        Array.isArray(r.uncovered_skills) && r.uncovered_skills.length
+          ? ` Missing: ${r.uncovered_skills.join(", ")}.`
+          : "";
+      const invite = r.proposed_role
+        ? ` Who to invite: ${r.proposed_role}.`
+        : "";
+      return `Checked the skills for ${i.client ?? "a job"}. ${r.coverage === "none" ? "Nobody in the guild has them." : "Partly covered."}${missing}${invite}`;
+    }
     case "pool.credit":
       return `The pool received ${usd(r.amount_cents ?? 0)} from a monthly member fee.`;
     case "scope.drafted":

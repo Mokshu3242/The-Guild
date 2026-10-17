@@ -3,7 +3,7 @@
 import useSWR, { mutate } from "swr";
 import { Suspense, useEffect, useRef, useState } from "react";
 import { motion, useReducedMotion } from "motion/react";
-import { useSearchParams } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { apiDelete, apiGet, apiPost } from "@/lib/api";
 import { timeAgo, usd } from "@/lib/format";
 import { useMe } from "@/lib/useMe";
@@ -12,6 +12,7 @@ import type { Job } from "@/components/JobsGrid";
 import { SplitBar } from "@/components/SplitBar";
 import { MoneyFlow, type SplitData } from "@/components/MoneyFlow";
 import { AiThinking } from "@/components/AiThinking";
+import { SkillGapPanel, type SkillGapResult } from "@/components/SkillGapPanel";
 import {
   Button,
   ErrorText,
@@ -68,6 +69,7 @@ export default function JobPageWrapper() {
 
 function JobPage() {
   const id = useSearchParams().get("id") ?? "";
+  const router = useRouter();
   const { me } = useMe();
   const { data: guild } = useGuild(me?.guild_id);
   const { data: members } = useMembers(me?.guild_id);
@@ -143,6 +145,12 @@ function JobPage() {
       source,
     };
   };
+  // Only offer delete when PayPal hasn't touched this job. The backend checks again.
+  const msIds = new Set((milestones ?? []).map((m) => m.id));
+  const canDelete =
+    isOwner &&
+    !(invoices ?? []).some((i) => msIds.has(i.milestone_id)) &&
+    (deposits ?? []).length === 0;
   const invoiceFor = (msId: string) =>
     invoices?.find((i) => i.milestone_id === msId);
   const depositFor = (msId: string) =>
@@ -207,9 +215,27 @@ function JobPage() {
   return (
     <div className="space-y-6">
       <div>
-        <div className="flex flex-wrap items-center gap-3">
-          <h1 className="min-w-0 break-words font-display text-3xl font-bold tracking-tight sm:text-4xl">{job.client_name}</h1>
-          <StatusPill status={job.status} />
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="flex min-w-0 flex-wrap items-center gap-3">
+            <h1 className="min-w-0 break-words font-display text-3xl font-bold tracking-tight sm:text-4xl">{job.client_name}</h1>
+            <StatusPill status={job.status} />
+          </div>
+          {canDelete && (
+            <Button
+              variant="danger"
+              disabled={!!busy}
+              onClick={() => {
+                if (!window.confirm(`Delete the job for ${job.client_name}? Its milestones go too. This can't be undone.`)) return;
+                run("delete-job", async () => {
+                  await apiDelete(`/jobs/${id}`);
+                  mutate("jobs");
+                  router.push("/jobs/");
+                });
+              }}
+            >
+              {busy === "delete-job" ? "Deleting…" : "Delete job"}
+            </Button>
+          )}
         </div>
         <p className="mt-1 text-sm text-muted">
           Posted by {nameOf(job.referrer_id)}. Worker: {nameOf(job.worker_id)}.
@@ -225,6 +251,17 @@ function JobPage() {
       </div>
 
       {isOwner && <ClientRiskPanel job={job} onChange={refreshJob} />}
+
+      {isOwner && !job.worker_id && ["open", "matched"].includes(job.status) && (
+        <SkillGapPanel
+          jobId={job.id}
+          clientName={job.client_name}
+          guildName={guild?.name}
+          inviteCode={me.role === "admin" ? guild?.invite_code : undefined}
+          initial={(job.skill_gap as SkillGapResult | null) ?? null}
+          onChange={refreshJob}
+        />
+      )}
 
       <Panel title="What the client needs">
         <p className="max-w-prose leading-relaxed">{job.description}</p>
