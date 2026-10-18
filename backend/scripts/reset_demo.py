@@ -29,7 +29,7 @@ from sqlmodel import Session, delete, select
 
 from app.db import engine
 from app.models import (
-    AgentAction, Broadcast, Claim, Deposit, Guild, Invoice, Job, MaintenanceWindow, Member, Milestone,
+    AgentAction, Broadcast, Claim, Deposit, Guild, GuildDigest, Invoice, Job, MaintenanceWindow, Member, Milestone,
     Payout, PoolTx, Reminder, ScopeFlag, Subscription, WebhookEvent, utcnow,
 )
 from app.services import paypal_invoices

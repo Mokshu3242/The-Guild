@@ -281,3 +281,15 @@ class PlatformAuditLog(SQLModel, table=True):
     inputs: dict = Field(default_factory=dict, sa_column=Column(JSON, nullable=False))
     result: dict = Field(default_factory=dict, sa_column=Column(JSON, nullable=False))
     created_at: datetime = created_field()
+
+class GuildDigest(SQLModel, table=True):
+    __tablename__ = "guild_digests"
+
+    id: UUID = Field(default_factory=uuid4, primary_key=True)
+    guild_id: UUID = Field(foreign_key="guilds.id", index=True)
+    period_start: datetime = created_field()
+    period_end: datetime = created_field()
+    narrative: str = ""
+    stats: dict = Field(default_factory=dict, sa_column=Column(JSON, nullable=False))
+    written_by: str = "ai"   # ai | template
+    created_at: datetime = created_field()

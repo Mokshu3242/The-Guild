@@ -31,6 +31,7 @@ const WHO: Record<string, { tag: string; cls: string }> = {
   "claim.mediated": { tag: "AI", cls: "bg-guild-soft text-guild" },
   "rate.advised": { tag: "AI", cls: "bg-guild-soft text-guild" },
   "deposit.held": { tag: "PayPal", cls: "bg-seal-soft text-seal" },
+  "digest.published": { tag: "AI", cls: "bg-guild-soft text-guild" },
   "deposit.reviewed": { tag: "AI", cls: "bg-guild-soft text-guild" },
   "deposit.captured": { tag: "Human", cls: "bg-ink text-white" },
   "deposit.voided": { tag: "Human", cls: "bg-ink text-white" },
@@ -49,6 +50,8 @@ function describe(a: Action): string {
   switch (a.action) {
     case "job.match":
       return `Matched ${r.top_name ?? "a member"} to a job${r.backup_name ? `, with ${r.backup_name} as backup` : ""}. ${r.reason ?? ""}`;
+    case "digest.published":
+      return "Wrote the weekly digest.";
     case "job.removed":
       return `${i.by ?? "A member"} deleted the job for ${r.client ?? "a client"}${r.milestones ? ` and its ${r.milestones} milestone${r.milestones === 1 ? "" : "s"}` : ""}.`;
     case "invoice.paid.split":

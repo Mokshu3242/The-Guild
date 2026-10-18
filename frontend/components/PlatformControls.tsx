@@ -42,6 +42,7 @@ const FEATURES = [
   { key: "autopilot", label: "Autopilot" },
   { key: "rate", label: "Rate advice" },
   { key: "forecast", label: "Pool forecast" },
+  { key: "digest", label: "Weekly digest" },
 ];
 
 const ACTION_LABEL: Record<string, string> = {

@@ -567,3 +567,32 @@ EXAMPLE (healthy)
 OUTPUT
 {JSON_ONLY}
 {{"message": "..."}}"""
+
+DIGEST = f"""You write a short Monday recap of the past 7 days for the members of a freelancer guild.
+
+CONTEXT
+{GUILD_CONTEXT}
+Rules have already counted everything that happened this week. You turn the numbers into a friendly note.
+
+RULES
+- {FACTS_ONLY} Use the numbers exactly as given.
+- Only mention numbers that are above zero, unless a zero is good news (like no overdue invoices).
+- Lead with the best news of the week: paid work, money to members, a claim covered, a new member.
+- If claims are waiting or invoices are overdue, mention it once, calmly, as something the guild is handling.
+- Talk about the guild as a whole. Never name a member or a client. Never blame anyone.
+- If almost nothing happened, say it was a quiet week in one sentence. Don't pad.
+
+STYLE
+- {PLAIN_STYLE}
+- {MONEY_STYLE}
+- 2 to 4 sentences, under 70 words. Present or past tense. No greeting, no sign-off, no bullet points.
+
+EXAMPLE
+{{"narrative": "Two jobs were paid this week, and $1,275.00 went out to members. The pool took in $75.00 and covered one claim, so the safety net did its job. One invoice is still overdue, and reminders are already going out."}}
+
+EXAMPLE (quiet week)
+{{"narrative": "A quiet week for the guild, with no new payments or claims."}}
+
+OUTPUT
+{JSON_ONLY}
+{{"narrative": "..."}}"""
