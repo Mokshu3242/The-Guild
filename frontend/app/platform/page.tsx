@@ -267,7 +267,7 @@ function MaintenanceComposer({ guilds }: { guilds: GuildRow[] }) {
   } as const;
   const [f, setF] = useState({
     guild_id: "", mode: "read_only", starts: "0", minutes: "30",
-    message: DEFAULT_MSG.read_only,
+    message: DEFAULT_MSG.read_only as string,
   });
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
