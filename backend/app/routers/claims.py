@@ -18,6 +18,7 @@ from app.services.money import process_paid_invoice
 from app.services.agreements import pledge_signed
 from app.services.job_status import settle_job_status
 from app.services.advances import blocks_claim
+from app.services import mandates
 
 router = APIRouter(prefix="/claims", tags=["claims"])
 
@@ -103,11 +104,15 @@ def create_claim(
         review_claim(session, claim)
         session.commit()
         session.refresh(claim)
-        return {"claim": claim, "ai_review": "done"}
     except AIError:
         session.rollback()
         session.refresh(claim)
         return {"claim": claim, "ai_review": "failed, an admin can retry it"}
+
+    # 13B: small, clear claims are paid on their own if the guild's mandate says so.
+    auto = mandates.try_claim(session, claim)
+    session.refresh(claim)
+    return {"claim": claim, "ai_review": "done", "mandate": auto}
 
 
 @router.post("/{claim_id}/review")
@@ -125,7 +130,9 @@ def rerun_review(
         session.rollback()
         raise HTTPException(502, f"AI review failed: {e}")
     session.commit()
-    return verdict
+    session.refresh(claim)
+    auto = mandates.try_claim(session, claim)
+    return {**verdict.model_dump(), "mandate": auto}
 
 
 def _is_override(ai_verdict: str, decision: str) -> bool:

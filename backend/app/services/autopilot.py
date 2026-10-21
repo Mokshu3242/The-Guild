@@ -9,6 +9,7 @@ from app.models import AgentAction, Deposit, Invoice, Job, Member, Milestone, Re
 from app.services.ai import AIError, run_ai_json
 from app.prompts import AUTOPILOT as SYSTEM
 from app.services.client_risk import client_history, risk_level
+from app.services import mandates
 
 try:  # reuse the reminder schedule if reminders.py exposes it
     from app.services.reminders import TIER_DAYS  # type: ignore
@@ -24,7 +25,10 @@ PRIORITY = {"remind": 0, "deposit": 1, "match": 2, "scope_hint": 3}
 
 
 def _days_since(dt) -> int:
-    return (utcnow() - dt).days if dt else 0
+    if not dt:
+        return 0
+    now = utcnow()
+    return (now - (dt if dt.tzinfo else dt.replace(tzinfo=now.tzinfo))).days
 
 
 def _overdue_invoices(session: Session, guild_id) -> list[dict]:
@@ -35,8 +39,11 @@ def _overdue_invoices(session: Session, guild_id) -> list[dict]:
         .join(Job, Milestone.job_id == Job.id)
         .where(Job.guild_id == guild_id, Invoice.status == "sent")
     ).all()
+    auto_tier = mandates.remind_tier(session, guild_id)
     for inv, ms, job in rows:
-        days = _days_since(getattr(inv, "sent_at", None) or inv.created_at)
+        if not inv.sent_at:   # Invoice has no created_at; a sent invoice always has sent_at
+            continue
+        days = _days_since(inv.sent_at)
         due = max((t for t, d in TIER_DAYS.items() if days >= d), default=None)
         if due is None:
             continue
@@ -51,6 +58,12 @@ def _overdue_invoices(session: Session, guild_id) -> list[dict]:
             "rule_reason": f"The invoice for {ms.title} has been unpaid for {days} days, and reminder {due} of 3 hasn't gone out.",
             "action_endpoint": f"/invoices/{inv.id}/remind",
             "action_body": {},
+            "mandate_note": (
+                f"The daily run sends this one on its own (mandate: up to tier {auto_tier})."
+                if (max(sent) + 1 if sent else 1) <= auto_tier
+                else "Needs you: nothing is sent on its own right now." if auto_tier == 0
+                else f"Needs you: the mandate only sends up to tier {auto_tier} on its own."
+            ),
         })
     return out
 

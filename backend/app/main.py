@@ -15,6 +15,7 @@ from app.routers import evidence
 from app.routers import recovery
 from app.routers import advances
 from app.routers import api_keys, public_api
+from app.routers import mandates
 
 
 logging.basicConfig(level=logging.INFO)
@@ -69,3 +70,4 @@ app.include_router(recovery.router)
 app.include_router(advances.router)
 app.include_router(api_keys.router)
 app.include_router(public_api.router)
+app.include_router(mandates.router)

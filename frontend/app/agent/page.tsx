@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { AgentFeed } from "@/components/AgentFeed";
 import { ApiKeysPanel } from "@/components/ApiKeysPanel";
+import { MandatePanel } from "@/components/MandatePanel";
 import { useMe } from "@/lib/useMe";
 import { PageHeader, Panel } from "@/components/ui";
 
@@ -29,6 +30,7 @@ export default function AgentPage() {
           </label>
         }
       />
+      {me?.role === "admin" && <MandatePanel />}
       {me?.role === "admin" && <ApiKeysPanel />}
       <Panel>
         <AgentFeed limit={limit} showRaw />

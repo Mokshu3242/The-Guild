@@ -11,6 +11,7 @@ from app.services.money import process_paid_invoice
 from app.services.notices import is_suspended
 from app.services.platform_settings import reminders_enabled
 from app.services.reminder_writer import write_reminder
+from app.services import mandates
 
 logger = logging.getLogger(__name__)
 
@@ -34,8 +35,12 @@ def next_tier(session: Session, invoice: Invoice, days: int) -> int | None:
     return nxt
 
 
-def remind_one(session: Session, invoice: Invoice, guild_id) -> dict:
-    """Send the next due reminder for one invoice. Commits on its own."""
+def remind_one(session: Session, invoice: Invoice, guild_id, max_tier: int | None = None, rule: str = "") -> dict:
+    """Send the next due reminder for one invoice. Commits on its own.
+
+    max_tier: set by the daily run from the guild's mandate (13B). Higher tiers wait for a person.
+    A person pressing "Send reminder" passes nothing, so it always works.
+    """
     if invoice.status != "sent" or not invoice.sent_at:
         return {"status": "skipped", "reason": f"invoice is {invoice.status}"}
 
@@ -50,6 +55,8 @@ def remind_one(session: Session, invoice: Invoice, guild_id) -> dict:
     tier = next_tier(session, invoice, days)
     if tier is None:
         return {"status": "not_due", "days_overdue": days}
+    if max_tier is not None and tier > max_tier:
+        return {"status": "needs_admin", "tier": tier, "reason": f"The mandate sends up to tier {max_tier} on its own"}
 
     # Platform switches. Checked before the AI writes anything.
     if not reminders_enabled(session):
@@ -99,6 +106,7 @@ def remind_one(session: Session, invoice: Invoice, guild_id) -> dict:
             "tier": tier,
             "days_overdue": days,
             "risk_level": risk,
+            **({"mandate": rule} if rule else {}),
         },
         result={"subject": draft.subject, "written_by": written_by},
     ))
@@ -115,9 +123,14 @@ def run_all(session: Session) -> list[dict]:
         .where(Invoice.status == "sent")
     ).all()
     results = []
+    limits: dict = {}
     for invoice, guild_id in rows:
+        if guild_id not in limits:
+            m = mandates.get(session, guild_id)
+            limits[guild_id] = (mandates.remind_tier(session, guild_id), mandates.remind_rule(m))
+        max_tier, rule = limits[guild_id]
         try:
-            r = remind_one(session, invoice, guild_id)
+            r = remind_one(session, invoice, guild_id, max_tier=max_tier, rule=rule if max_tier else "")
         except Exception:
             session.rollback()
             logger.exception("Reminder run failed for invoice %s", invoice.id)

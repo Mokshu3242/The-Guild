@@ -1123,6 +1123,7 @@ function ClaimForm({
       const r = await apiPost<{
         claim: { ai_verdict: string };
         ai_review: string;
+        mandate?: { status: string; amount_cents?: number; set_by?: string };
       }>("/claims", {
         invoice_id: invoiceId,
         statement,
@@ -1132,7 +1133,9 @@ function ClaimForm({
           .filter(Boolean),
       });
       onDone(
-        r.ai_review === "done"
+        r.mandate?.status === "paid"
+          ? `Claim filed and paid: ${usd(r.mandate.amount_cents ?? 0)} from the pool, under the guild mandate set by ${r.mandate.set_by}.`
+          : r.ai_review === "done"
           ? `Claim filed. The AI recommends "${r.claim.ai_verdict.replaceAll("_", " ")}". An admin makes the final call.`
           : "Claim filed. The AI review didn't finish, so an admin will retry it.",
       );

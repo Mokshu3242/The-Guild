@@ -46,9 +46,15 @@ export function AdvanceBox({ invoiceId, onDone }: { invoiceId: string; onDone: (
     setBusy(true);
     setErr(null);
     try {
-      const r = await apiPost<{ advance_cents: number }>(`/advances/invoices/${invoiceId}/request`);
+      const r = await apiPost<{ advance_cents: number; mandate?: { status: string; set_by?: string } }>(
+        `/advances/invoices/${invoiceId}/request`,
+      );
       await mutate();
-      onDone(`Asked for ${usd(r.advance_cents)} now. An admin approves it, then it goes straight to your PayPal.`);
+      onDone(
+        r.mandate?.status === "paid"
+          ? `Paid: ${usd(r.advance_cents)} is on its way to your PayPal, under the guild mandate set by ${r.mandate.set_by}.`
+          : `Asked for ${usd(r.advance_cents)} now. An admin approves it, then it goes straight to your PayPal.`,
+      );
     } catch (e) {
       setErr(e instanceof Error ? e.message : "Couldn't ask for the advance");
     } finally {

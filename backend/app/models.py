@@ -444,3 +444,26 @@ class Quote(SQLModel, table=True):
     job_id: Optional[UUID] = Field(default=None, foreign_key="jobs.id")
     created_at: datetime = created_field()
     expires_at: datetime = created_field()
+
+
+class AgentMandate(SQLModel, table=True):
+    """13B. What the agent may do on its own in one guild. No row means the defaults below.
+
+    Reminders were already automatic (daily cron, all 3 tiers). remind_max_tier now limits that:
+    tiers above it wait for a person. Claims and advances are off until an admin turns them on.
+    Every automatic money action is credited to the admin who set the mandate (set_by_id).
+    """
+    __tablename__ = "agent_mandates"
+
+    id: UUID = Field(default_factory=uuid4, primary_key=True)
+    guild_id: UUID = Field(foreign_key="guilds.id", unique=True, index=True)
+    active: bool = True
+    remind_max_tier: int = 0          # 0 = none on their own, 1 friendly, 2 firm, 3 final
+    auto_claim: bool = False
+    claim_max_cents: int = 5_000
+    claim_min_confidence: int = 85    # percent
+    auto_advance: bool = False
+    advance_max_cents: int = 5_000
+    set_by_id: Optional[UUID] = Field(default=None, foreign_key="members.id")
+    set_by_name: str = ""
+    updated_at: datetime = created_field()

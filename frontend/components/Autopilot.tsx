@@ -19,6 +19,7 @@ interface Finding {
   ai_reason: string;
   action_endpoint: string;
   action_body: Record<string, unknown>;
+  mandate_note?: string;
 }
 
 interface ScanResult {
@@ -202,6 +203,13 @@ export function Autopilot() {
                       <p className="mt-1">{f.rule_reason}</p>
                     </details>
                   )}
+                  {f.mandate_note && (
+                    <p
+                      className={`mt-2 text-xs ${f.mandate_note.startsWith("Needs you") ? "text-muted" : "text-guild"}`}
+                    >
+                      {f.mandate_note}
+                    </p>
+                  )}
 
                   {result ? (
                     <div className="mt-3 text-sm">
@@ -258,3 +266,4 @@ export function Autopilot() {
     </Panel>
   );
 }
+

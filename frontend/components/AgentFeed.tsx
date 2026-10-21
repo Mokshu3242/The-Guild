@@ -68,6 +68,8 @@ const WHO: Record<string, { tag: string; cls: string }> = {
   "hire.quoted": { tag: "AI", cls: "bg-guild-soft text-guild" },
   "hire.received": { tag: "Agent", cls: "bg-seal-soft text-seal" },
   "hire.matched": { tag: "AI", cls: "bg-guild-soft text-guild" },
+  "mandate.updated": { tag: "Human", cls: "bg-ink text-white" },
+  "mandate.applied": { tag: "Mandate", cls: "bg-seal-soft text-seal" },
 };
 
 function describe(a: Action): string {
@@ -120,6 +122,12 @@ function describe(a: Action): string {
       return `${r.client}'s AI hired the guild through "${i.key}": ${r.milestones} milestone${r.milestones === 1 ? "" : "s"}, ${usd(r.total_cents ?? 0)}. ${r.referrer} is the referrer.`;
     case "hire.matched":
       return `Picked ${r.worker} for ${r.client}'s agent hire. ${r.reason ?? ""}`;
+    case "mandate.updated":
+      return `${i.by} ${r.active === false ? "turned the agent mandate off" : `set the agent mandate: ${(r.rules ?? []).join("; ")}`}.`;
+    case "mandate.applied":
+      return i.kind === "claim"
+        ? `Paid a ${usd(r.amount_cents ?? 0)} claim without a click (AI ${r.confidence}% sure). Rule set by ${i.set_by}: ${i.rule}.`
+        : `Paid a ${usd(r.amount_cents ?? 0)} advance without a click. Rule set by ${i.set_by}: ${i.rule}.`;
     case "pledge.signed":
       return `${i.by} signed the Member Pledge.`;
      case "portal.enabled":
@@ -196,7 +204,7 @@ function describe(a: Action): string {
         i.risk_level && i.risk_level !== "unknown"
           ? ` (client is ${i.risk_level} risk)`
           : "";
-      return `Sent reminder ${i.tier} of 3 to a client ${i.days_overdue} days overdue${risk}: "${r.subject}"`;
+      return `Sent reminder ${i.tier} of 3 to a client ${i.days_overdue} days overdue${risk}: "${r.subject}"${i.mandate ? `. Sent on its own under the mandate (${i.mandate}).` : ""}`;
     }
     case "rate.advised":
       return `Compared ${i.member ?? "a member"}'s rate with the guild (${String(r.verdict ?? "").replaceAll("_", " ")}). ${r.message ?? ""}`;

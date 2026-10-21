@@ -9,6 +9,7 @@ from app.db import get_session
 from app.deps import get_current_member, require_admin
 from app.models import Advance, Invoice, Job, Member, Milestone
 from app.services import advances as svc
+from app.services import mandates
 
 router = APIRouter(prefix="/advances", tags=["advances"])
 
@@ -62,8 +63,11 @@ def request_advance(invoice_id: UUID, me: Member = Depends(get_current_member), 
         session.rollback()
         raise HTTPException(400, str(e))
     session.commit()
+    # 13B: small advances are paid on their own if the guild's mandate says so.
+    auto = mandates.try_advance(session, adv)
+    session.refresh(adv)
     return {"id": str(adv.id), "status": adv.status, "advance_cents": adv.advance_cents,
-            "fee_cents": adv.fee_cents, "explanation": adv.explanation}
+            "fee_cents": adv.fee_cents, "explanation": adv.explanation, "mandate": auto}
 
 
 @router.post("/{advance_id}/approve")
