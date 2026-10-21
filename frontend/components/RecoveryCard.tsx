@@ -43,7 +43,7 @@ interface Report {
   method: string;
   note: string;
   created_at: string;
-  would_owe: { referrer_cents: number; pool_cents: number; claim_cents: number; owed_cents: number; has_referrer: boolean };
+  would_owe: { referrer_cents: number; pool_cents: number; claim_cents: number; advance_cents: number; owed_cents: number; has_referrer: boolean };
 }
 interface Recovery {
   covered_cents: number;
@@ -160,6 +160,7 @@ export function RecoveryCard({ isAdmin }: { isAdmin: boolean }) {
                     r.would_owe.has_referrer && `${usd(r.would_owe.referrer_cents)} referral fee (the pool pays it now)`,
                     `${usd(r.would_owe.pool_cents)} pool slice`,
                     r.would_owe.claim_cents > 0 && `${usd(r.would_owe.claim_cents)} the pool already covered`,
+                    r.would_owe.advance_cents > 0 && `${usd(r.would_owe.advance_cents)} paid early, with its fee`,
                   ]
                     .filter(Boolean)
                     .join(", ")}

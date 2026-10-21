@@ -13,6 +13,7 @@ from app.routers import portal
 from app.routers import agreements
 from app.routers import evidence
 from app.routers import recovery
+from app.routers import advances
 
 
 logging.basicConfig(level=logging.INFO)
@@ -64,3 +65,4 @@ app.include_router(portal.member_router)
 app.include_router(agreements.router)
 app.include_router(evidence.router)
 app.include_router(recovery.router)
+app.include_router(advances.router)

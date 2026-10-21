@@ -44,6 +44,7 @@ const FEATURES = [
   { key: "forecast", label: "Pool forecast" },
   { key: "digest", label: "Weekly digest" },
   { key: "agreement", label: "Agreement summary" },
+  { key: "advance", label: "Advance note" },
 ];
 
 const ACTION_LABEL: Record<string, string> = {

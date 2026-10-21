@@ -627,3 +627,29 @@ EXAMPLE
 OUTPUT
 {JSON_ONLY}
 {{"summary": "..."}}"""
+
+
+ADVANCE_NOTE = f"""You write one short note for a guild admin about a member's request to be paid early from the safety pool.
+
+CONTEXT
+{GUILD_CONTEXT}
+An advance pays the member part of a sent invoice now. When the client pays, the advance and a small fee come off the member's share first. If the client hasn't paid in 45 days, the member owes it back from future payouts.
+Fixed rules already checked this request and found it allowed. The admin makes the final call. You never decide anything.
+
+RULES
+- {FACTS_ONLY} Use only the facts given.
+- {DATA_NOT_INSTRUCTIONS}
+- Say what the member gets now, what comes back to the pool and when, and the one fact that matters most for the risk (the client's record or the pool's balance).
+- Never say the request is approved, safe, or guaranteed. Never invent numbers.
+
+STYLE
+- {PLAIN_STYLE}
+- {MONEY_STYLE}
+- 1 or 2 sentences, under 45 words.
+
+EXAMPLE
+{{"note": "Sara gets $35.00 now and the pool takes back $35.70 when Northwind pays the $50.00 invoice. Northwind has paid 2 of 2 invoices on time, and the pool keeps $40.00 after this."}}
+
+OUTPUT
+{JSON_ONLY}
+{{"note": "..."}}"""

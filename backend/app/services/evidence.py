@@ -7,7 +7,7 @@ Each agreement's hash is checked again here, so a changed text shows as "does no
 from sqlmodel import Session, select
 
 from app.models import (
-    AgentAction, Agreement, Claim, Deposit, Guild, Invoice, Job, Member, Milestone, Payout, Reminder, utcnow,
+    Advance, AgentAction, Agreement, Claim, Deposit, Guild, Invoice, Job, Member, Milestone, Payout, Reminder, utcnow,
 )
 from app.services.agreements import sha256
 
@@ -31,8 +31,9 @@ def build_evidence(session: Session, job: Job) -> dict:
     reminders = session.exec(select(Reminder).where(Reminder.invoice_id.in_(inv_ids))).all() if inv_ids else []
     claims = session.exec(select(Claim).where(Claim.invoice_id.in_(inv_ids))).all() if inv_ids else []
     claim_ids = [c.id for c in claims]
+    adv_ids = [a.id for a in session.exec(select(Advance).where(Advance.invoice_id.in_(inv_ids))).all()] if inv_ids else []
     payouts = session.exec(
-        select(Payout).where(Payout.source_id.in_(inv_ids + claim_ids))
+        select(Payout).where(Payout.source_id.in_(inv_ids + claim_ids + adv_ids))
     ).all() if (inv_ids or claim_ids) else []
     agreements = session.exec(
         select(Agreement).where(Agreement.job_id == job.id).order_by(Agreement.accepted_at)

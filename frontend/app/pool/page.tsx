@@ -9,6 +9,7 @@ import { Button, ErrorText, Notice, PageHeader, Panel, StatusPill, buttonCls } f
 import { PoolBalance } from "@/components/PoolBalance";
 import { PoolForecast } from "@/components/PoolForecast";
 import { RecoveryCard } from "@/components/RecoveryCard";
+import { AdvancesPanel } from "@/components/AdvancesPanel";
 
 interface Pool { pool_balance_cents: number; monthly_fee_cents: number; active_subscribers: number; plan_ready: boolean }
 interface Sub { status: string; approve_url: string }
@@ -22,6 +23,9 @@ const SOURCE: Record<string, string> = {
   founding: "Founding members' starting contribution",
   set_off: "Paid back from a member's payout",
   referral_fronted: "Paid a referrer early (client paid a member directly)",
+  advance_paid: "Paid a member early (advance)",
+  advance_repaid: "Advance paid back when the client paid",
+  advance_fee: "Fee on an advance",
 };
 
 export default function PoolPage() {
@@ -66,6 +70,8 @@ export default function PoolPage() {
       </section>
 
       <PoolForecast isAdmin={me?.role === "admin"} />
+
+      <AdvancesPanel isAdmin={me?.role === "admin"} />
 
       <RecoveryCard isAdmin={me?.role === "admin"} />
 

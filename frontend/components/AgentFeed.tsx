@@ -58,6 +58,11 @@ const WHO: Record<string, { tag: string; cls: string }> = {
   "direct_payment.reported": { tag: "Human", cls: "bg-ink text-white" },
   "direct_payment.settled": { tag: "Human", cls: "bg-ink text-white" },
   "direct_payment.rejected": { tag: "Human", cls: "bg-ink text-white" },
+  "advance.requested": { tag: "AI", cls: "bg-guild-soft text-guild" },
+  "advance.paid": { tag: "Human", cls: "bg-ink text-white" },
+  "advance.declined": { tag: "Human", cls: "bg-ink text-white" },
+  "advance.repaid": { tag: "Rule", cls: "bg-seal-soft text-seal" },
+  "advance.defaulted": { tag: "Rule", cls: "bg-seal-soft text-seal" },
 };
 
 function describe(a: Action): string {
@@ -90,6 +95,16 @@ function describe(a: Action): string {
       return `${i.by} closed ${r.client}'s invoice as paid directly to ${i.member}. ${i.member} owes the guild ${usd(r.owed_cents ?? 0)}.`;
     case "direct_payment.rejected":
       return `${i.by} rejected a direct payment report.${r.note ? ` "${r.note}"` : ""}`;
+    case "advance.requested":
+      return `${i.by} asked to be paid ${usd(r.advance_cents ?? 0)} early for ${r.client}. ${r.note ?? ""}`;
+    case "advance.paid":
+      return `${i.by} approved it. ${usd(r.advance_cents ?? 0)} went to ${i.member}'s PayPal from the pool.`;
+    case "advance.declined":
+      return `${i.by} declined an early payment.${r.note ? ` "${r.note}"` : ""}`;
+    case "advance.repaid":
+      return `${r.client} paid. The pool took back the ${usd(r.advance_cents ?? 0)} advance and its ${usd(r.fee_cents ?? 0)} fee first.`;
+    case "advance.defaulted":
+      return `${r.client} hasn't paid ${r.days ?? 45} days after the advance. ${i.member} now owes ${usd(r.owed_cents ?? 0)}, taken from their next payouts.`;
     case "pledge.signed":
       return `${i.by} signed the Member Pledge.`;
      case "portal.enabled":

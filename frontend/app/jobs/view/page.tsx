@@ -14,6 +14,7 @@ import { MoneyFlow, type SplitData } from "@/components/MoneyFlow";
 import { AiThinking } from "@/components/AiThinking";
 import { SkillGapPanel, type SkillGapResult } from "@/components/SkillGapPanel";
 import { ClientPortalPanel } from "@/components/ClientPortalPanel";
+import { AdvanceBox } from "@/components/AdvanceBox";
 import {
   Button,
   ErrorText,
@@ -51,6 +52,7 @@ interface SyncResult {
   worker_cents?: number;
   recovered_cents?: number;
   set_off_cents?: number;
+  advance_back_cents?: number;
 }
 interface DepositRow {
   id: string;
@@ -99,6 +101,7 @@ function JobPage() {
   const [pick, setPick] = useState<MatchPick | null>(null);
   const [claimFor, setClaimFor] = useState<string | null>(null);
   const [directFor, setDirectFor] = useState<string | null>(null);
+  const [advanceFor, setAdvanceFor] = useState<string | null>(null);
   const [splitOverlay, setSplitOverlay] = useState<SplitData | null>(null);
 
   async function run(key: string, fn: () => Promise<void>) {
@@ -205,7 +208,7 @@ function JobPage() {
             splitFor(ms.amount, "invoice", r.recovered_cents ?? 0),
           );
         setNotice(
-          `Paid. ${usd(r.worker_cents ?? 0)} sent to the worker${r.recovered_cents ? `, and ${usd(r.recovered_cents)} returned to the pool` : ""}${r.set_off_cents ? `. ${usd(r.set_off_cents)} went to the pool for money a member owed` : ""}.`,
+          `Paid. ${usd(r.worker_cents ?? 0)} sent to the worker${r.recovered_cents ? `, and ${usd(r.recovered_cents)} returned to the pool` : ""}${r.set_off_cents ? `. ${usd(r.set_off_cents)} went to the pool for money a member owed` : ""}${r.advance_back_cents ? `. The pool took back ${usd(r.advance_back_cents)} it paid early` : ""}.`,
         );
       } else if (r.status === "already_paid") {
         setNotice("Already paid and split.");
@@ -515,6 +518,17 @@ function JobPage() {
                           variant="quiet"
                           disabled={!!busy}
                           onClick={() =>
+                            setAdvanceFor(advanceFor === inv.id ? null : inv.id)
+                          }
+                        >
+                          Get paid now
+                        </Button>
+                      )}
+                      {isWorker && job.status !== "disputed" && (
+                        <Button
+                          variant="quiet"
+                          disabled={!!busy}
+                          onClick={() =>
                             setDirectFor(directFor === inv.id ? null : inv.id)
                           }
                         >
@@ -526,6 +540,16 @@ function JobPage() {
                 </div>
 
                 {inv && <ReminderHistory invoiceId={inv.id} />}
+
+                {advanceFor === inv?.id && inv && (
+                  <AdvanceBox
+                    invoiceId={inv.id}
+                    onDone={(msg) => {
+                      setNotice(msg);
+                      mutate("advances");
+                    }}
+                  />
+                )}
 
                 {directFor === inv?.id && inv && (
                   <DirectPaymentForm

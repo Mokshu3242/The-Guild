@@ -373,3 +373,30 @@ class MemberDebt(SQLModel, table=True):
     created_at: datetime = created_field()
     closed_at: Optional[datetime] = optional_time()
 
+
+
+class Advance(SQLModel, table=True):
+    """12B Paid on day one. The pool pays part of a sent invoice early.
+
+    When the client pays, the advance plus its fee comes off the worker's share first.
+    If the client hasn't paid 45 days after the advance, it becomes a MemberDebt.
+    status: pending | paid | repaid | declined | defaulted | converted (client paid the member directly)
+    """
+    __tablename__ = "advances"
+
+    id: UUID = Field(default_factory=uuid4, primary_key=True)
+    guild_id: UUID = Field(foreign_key="guilds.id", index=True)
+    invoice_id: UUID = Field(foreign_key="invoices.id", index=True)
+    member_id: UUID = Field(foreign_key="members.id", index=True)
+    advance_cents: int = 0
+    fee_cents: int = 0
+    status: str = "pending"
+    explanation: str = ""          # AI or rules sentence for the admin
+    explained_by: str = "rules"    # ai | rules
+    decided_by: str = ""
+    decision_note: str = ""
+    paypal_batch_id: str = ""
+    member_debt_id: Optional[UUID] = Field(default=None, foreign_key="member_debts.id")
+    created_at: datetime = created_field()
+    paid_at: Optional[datetime] = optional_time()
+    closed_at: Optional[datetime] = optional_time()

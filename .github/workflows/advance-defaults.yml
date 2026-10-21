@@ -1,0 +1,19 @@
+name: Advance defaults
+
+on:
+  schedule:
+    - cron: "17 7 * * *"   # daily 07:17 UTC
+  workflow_dispatch:
+
+jobs:
+  sweep:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Wake the backend
+        run: curl -sS --max-time 90 https://guild-backend-vqg5.onrender.com/ || true
+      - name: Turn advances unpaid for 45 days into member debts
+        env:
+          TASK_SECRET: ${{ secrets.TASK_SECRET }}
+        run: |
+          curl -fsS -X POST https://guild-backend-vqg5.onrender.com/tasks/advance-defaults \
+            -H "X-Task-Secret: $TASK_SECRET" --max-time 120

@@ -17,6 +17,7 @@ from app.services.claims import pay_claim
 from app.services.money import process_paid_invoice
 from app.services.agreements import pledge_signed
 from app.services.job_status import settle_job_status
+from app.services.advances import blocks_claim
 
 router = APIRouter(prefix="/claims", tags=["claims"])
 
@@ -59,6 +60,8 @@ def create_claim(
         raise HTTPException(400, "Sign the Member Pledge on your profile before filing a claim")
     if invoice.status != "sent":
         raise HTTPException(400, f"Only unpaid sent invoices can be claimed (this one is {invoice.status})")
+    if blocks_claim(session, invoice.id):
+        raise HTTPException(400, "You were paid early on this invoice, so you carry the risk on it. The pool can't cover it twice.")
     open_claim = session.exec(
         select(Claim).where(Claim.invoice_id == invoice.id).where(Claim.status != "rejected")
     ).first()

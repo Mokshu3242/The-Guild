@@ -62,8 +62,8 @@ def client_history(session: Session, job: Job) -> dict:
 
     now = utcnow()
     for i in invoices:
-        if i.status in UNPAID:
-            started = getattr(i, "sent_at", None) or i.created_at
+        if i.status in UNPAID and i.sent_at:
+            started = i.sent_at if i.sent_at.tzinfo else i.sent_at.replace(tzinfo=now.tzinfo)
             facts["longest_unpaid_days"] = max(facts["longest_unpaid_days"], (now - started).days)
 
     facts.update(

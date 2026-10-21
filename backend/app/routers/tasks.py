@@ -6,6 +6,7 @@ from sqlmodel import Session
 from app.config import settings
 from app.db import get_session
 from app.services.auto_approve import run_auto_approve
+from app.services.advances import sweep_defaults
 from app.services.reminders import run_all
 
 router = APIRouter(prefix="/tasks", tags=["tasks"])
@@ -42,3 +43,14 @@ def auto_approve(
     approved = run_auto_approve(session)
     return {"approved": len(approved), "milestones": approved}
 
+
+
+@router.post("/advance-defaults")
+def advance_defaults(
+    x_task_secret: str = Header(default=""),
+    session: Session = Depends(get_session),
+):
+    """Daily cron: advances still unpaid 45 days later become a member debt."""
+    _check(x_task_secret)
+    done = sweep_defaults(session)
+    return {"defaulted": len(done), "advances": done}

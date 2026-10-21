@@ -13,10 +13,11 @@ from datetime import timezone
 from sqlmodel import Session, select
 
 from app.models import (
-    AgentAction, Claim, DirectPayment, Guild, Invoice, Job, Member, MemberDebt, Milestone, Payout, PoolTx,
+    Advance, AgentAction, Claim, DirectPayment, Guild, Invoice, Job, Member, MemberDebt, Milestone, Payout, PoolTx,
     Reminder, utcnow,
 )
 from app.services import paypal_invoices, paypal_payouts
+from app.services.advances import owed_on_direct
 from app.services.job_status import settle_job_status
 from app.services.split_engine import split_payment
 
@@ -114,12 +115,15 @@ def owed_breakdown(session: Session, invoice: Invoice, job: Job) -> dict:
     covered = 0
     if claim and claim.payout_id:
         covered = max(0, session.get(Payout, claim.payout_id).amount - claim.recovered_cents)
+    adv = session.exec(select(Advance).where(Advance.invoice_id == invoice.id, Advance.status == "paid")).first()
+    advance = adv.advance_cents + adv.fee_cents if adv else 0   # 12B: the pool paid the member early
     return {
         "worker_cents": split.worker_cents,
         "referrer_cents": split.referrer_cents if has_referrer else 0,
         "pool_cents": split.pool_cents,
         "claim_cents": covered,          # the pool already paid the member for this invoice
-        "owed_cents": (split.referrer_cents if has_referrer else 0) + split.pool_cents + covered,
+        "advance_cents": advance,
+        "owed_cents": (split.referrer_cents if has_referrer else 0) + split.pool_cents + covered + advance,
         "has_referrer": has_referrer,
     }
 
@@ -216,6 +220,11 @@ def settle_direct(session: Session, dp: DirectPayment, admin: Member) -> dict:
                           amount_cents=b["owed_cents"],
                           note=f"{job.client_name} paid {member.name} directly for {milestone.title}")
         session.add(debt)
+        session.flush()
+    adv = owed_on_direct(session, invoice.id)
+    if adv:   # the advance is now part of that debt
+        adv.status, adv.closed_at, adv.member_debt_id = "converted", utcnow(), debt.id if debt else None
+        session.add(adv)
 
     now = utcnow()
     invoice.status, invoice.paid_at = "paid", now

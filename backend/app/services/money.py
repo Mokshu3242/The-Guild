@@ -9,6 +9,7 @@ from app.models import (
 from app.services import paypal_payouts
 from app.services.job_status import settle_job_status
 from app.services.recovery import apply_set_off, note_recovery
+from app.services.advances import take_back
 from app.services.split_engine import split_payment
 
 logger = logging.getLogger(__name__)
@@ -60,6 +61,10 @@ def process_paid_invoice(session: Session, invoice_id: UUID, source: str) -> dic
         worker_cents -= recovered
         if recovered:
             note_recovery(session, paid_claim, job, recovered, claim_payout.amount)
+
+    # 12B: if the pool paid the worker early, the advance and its fee come back first.
+    advance_back = take_back(session, guild, invoice, job, worker_cents)
+    worker_cents -= advance_back
 
     # 1. Pool: the usual slice, plus any recovery
     for amount, src in ((split.pool_cents, "referral_slice"), (recovered, "recovery")):
@@ -131,6 +136,7 @@ def process_paid_invoice(session: Session, invoice_id: UUID, source: str) -> dic
         "pool_cents": split.pool_cents,
         "recovered_cents": recovered,
         "set_off_cents": set_off,
+        "advance_back_cents": advance_back,
         "payout_batch_id": batch_id,
     }
     session.add(AgentAction(
