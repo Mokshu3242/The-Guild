@@ -23,6 +23,8 @@ interface Ms {
   delivered_at: string | null;
   delivery_note: string;
   approved_at: string | null;
+  approved_by: "" | "client" | "silence";
+  review_deadline: string | null;
   feedback: string;
   invoice: { status: string; pay_url: string; days_open: number } | null;
   deposit: { state: "needs_approval" | "on_hold"; amount_cents: number; approve_url: string } | null;
@@ -219,7 +221,22 @@ function MilestoneCard({ m, token, onChange }: { m: Ms; token: string; onChange:
           <span className="font-medium text-ink">You asked for:</span> {m.feedback}
         </p>
       )}
-      {m.approved_at && <p className="mt-3 text-sm text-guild">You approved this on {day(m.approved_at)}. Thank you.</p>}
+      {m.approved_at && (
+        <p className="mt-3 text-sm text-guild">
+          {m.approved_by === "silence"
+            ? `Counted as approved on ${day(m.approved_at)}, because there was no reply within 5 business days.`
+            : `You approved this on ${day(m.approved_at)}. Thank you.`}
+        </p>
+      )}
+      {m.review_deadline && (
+        <p className="mt-3 text-sm text-muted">
+          Please review it by{" "}
+          <span className="font-medium text-ink">
+            {new Date(m.review_deadline).toLocaleDateString(undefined, { weekday: "long", month: "short", day: "numeric" })}
+          </span>
+          . If there&apos;s no reply by then, it counts as approved, as your agreement says.
+        </p>
+      )}
 
       {m.deposit?.state === "needs_approval" && m.deposit.approve_url && (
         <PayBox
@@ -236,6 +253,7 @@ function MilestoneCard({ m, token, onChange }: { m: Ms; token: string; onChange:
           text={m.invoice.days_open > 0 ? `Invoice sent ${m.invoice.days_open} days ago.` : "Invoice sent today."}
           href={m.invoice.pay_url}
           cta="Pay with PayPal"
+          hint="PayPal may offer Pay Later at checkout, if you're eligible."
         />
       )}
 
@@ -293,10 +311,13 @@ function MilestoneCard({ m, token, onChange }: { m: Ms; token: string; onChange:
   );
 }
 
-function PayBox({ text, href, cta }: { text: string; href: string; cta: string }) {
+function PayBox({ text, href, cta, hint }: { text: string; href: string; cta: string; hint?: string }) {
   return (
     <div className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-lg border border-seal/20 bg-seal-soft/40 px-4 py-3">
-      <p className="text-sm">{text}</p>
+      <div className="text-sm">
+        <p>{text}</p>
+        {hint && <p className="mt-0.5 text-xs text-muted">{hint}</p>}
+      </div>
       <a
         href={href}
         target="_blank"

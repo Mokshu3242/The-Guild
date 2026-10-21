@@ -49,7 +49,10 @@ def review_claim(session: Session, claim: Claim) -> ClaimVerdict:
         f"marked delivered on {milestone.delivered_at:%B %d, %Y}" if milestone.delivered_at
         else "never marked as delivered in our system"
     )
-    if milestone.client_approved_at:
+    if milestone.client_approved_at and milestone.approved_by == "silence":
+        client_line = (f"the client did not reply within the agreed review window, so the delivery counted as "
+                       f"approved on {milestone.client_approved_at:%B %d, %Y}")
+    elif milestone.client_approved_at:
         client_line = f"the client approved the delivery on {milestone.client_approved_at:%B %d, %Y}"
     elif milestone.client_changes_requested_at:
         client_line = f"the client asked for changes on {milestone.client_changes_requested_at:%B %d, %Y}"

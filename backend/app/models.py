@@ -96,6 +96,7 @@ class Milestone(SQLModel, table=True):
     client_approved_at: Optional[datetime] = optional_time()
     client_changes_requested_at: Optional[datetime] = optional_time()
     client_feedback: str = ""
+    approved_by: str = ""     # "" | client | silence (no reply within the review window)
     created_at: datetime = created_field()
 
 

@@ -164,7 +164,7 @@ def seed(session: Session, kept: dict) -> None:
     paid_ms = Milestone(job_id=paid.id, title="Landing page copy", amount=50000, status="paid",
                         scope="Hero plus three product sections.",
                         delivered_at=now - timedelta(days=21), delivery_note="Final copy doc shared in Google Docs.",
-                        client_approved_at=now - timedelta(days=20))
+                        client_approved_at=now - timedelta(days=20), approved_by="client")
     ghost_ms = Milestone(job_id=ghost.id, title="Studio website copy", amount=8000, status="invoiced",
                          scope="Home, about, and three class pages. Two rounds of edits.",
                          delivered_at=now - timedelta(days=GHOST_DAYS_UNPAID + 1),

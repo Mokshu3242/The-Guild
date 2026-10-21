@@ -14,6 +14,7 @@ from app.config import settings
 from app.db import engine
 from app.models import AgentAction, Deposit, Guild, Invoice, Job, Member, Milestone, utcnow
 from app.services.agreements import work_state
+from app.services.auto_approve import review_deadline
 from app.services.notices import active_maintenance
 
 logger = logging.getLogger(__name__)
@@ -117,6 +118,14 @@ def can_change(m: Milestone, inv: Invoice | None) -> bool:
     return can_review(m, inv) and not (inv and inv.status == "sent")
 
 
+def _deadline_iso(m: Milestone, inv: Invoice | None, signed: set) -> str | None:
+    """When silence turns into approval. Only while the client still has something to review,
+    and only if they accepted an agreement that contains the 5-day rule."""
+    if not can_review(m, inv) or not m.delivered_at or str(m.id) not in signed:
+        return None
+    return review_deadline(m.delivered_at).isoformat()
+
+
 def _deposit_out(d: Deposit | None) -> dict | None:
     if not d or d.status in DEAD_DEPOSIT:
         return None
@@ -167,6 +176,8 @@ def portal_view(session: Session, job: Job) -> dict:
             "delivered_at": m.delivered_at.isoformat() if m.delivered_at else None,
             "delivery_note": m.delivery_note,
             "approved_at": m.client_approved_at.isoformat() if m.client_approved_at else None,
+            "approved_by": m.approved_by,
+            "review_deadline": _deadline_iso(m, inv, signed),
             "feedback": m.client_feedback if _changes_open(m) else "",
             "invoice": _invoice_out(inv),
             "deposit": _deposit_out(deps.get(m.id)),
@@ -203,6 +214,7 @@ def _ms_for_client(session: Session, job: Job, milestone_id, changes: bool = Fal
 def client_approve(session: Session, job: Job, milestone_id) -> None:
     m, _ = _ms_for_client(session, job, milestone_id)
     m.client_approved_at = utcnow()
+    m.approved_by = "client"
     session.add(m)
     session.add(AgentAction(
         guild_id=job.guild_id,
@@ -278,6 +290,8 @@ def member_view(session: Session, job: Job, me: Member) -> dict:
                 "stage": stage(m, invs.get(m.id)),
                 "delivered_at": m.delivered_at.isoformat() if m.delivered_at else None,
                 "approved_at": m.client_approved_at.isoformat() if m.client_approved_at else None,
+                "approved_by": m.approved_by,
+                "review_deadline": _deadline_iso(m, invs.get(m.id), signed),
                 "feedback": m.client_feedback if _changes_open(m) else "",
                 "locked": m.status in LOCKED_MS,
                 "in_agreement": str(m.id) in signed,
@@ -294,6 +308,7 @@ def mark_delivered(session: Session, job: Job, m: Milestone, me: Member, note: s
     m.delivered_at = utcnow()
     m.delivery_note = note.strip()[:1500]
     m.client_approved_at = None            # a new delivery needs a fresh review
+    m.approved_by = ""
     m.client_changes_requested_at = None
     m.client_feedback = ""
     session.add(m)

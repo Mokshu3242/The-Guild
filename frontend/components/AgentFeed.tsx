@@ -50,6 +50,7 @@ const WHO: Record<string, { tag: string; cls: string }> = {
    "portal.client_changes": { tag: "Client", cls: "bg-seal-soft text-seal" },
   "agreement.accepted": { tag: "Client", cls: "bg-guild-soft text-guild" },
   "pledge.signed": { tag: "Human", cls: "bg-ink text-white" },
+  "milestone.auto_approved": { tag: "Rule", cls: "bg-seal-soft text-seal" },
 };
 
 function describe(a: Action): string {
@@ -64,6 +65,8 @@ function describe(a: Action): string {
       return r.kind === "amendment"
         ? `${i.by} accepted an update to the work agreement for ${i.client} (${r.milestones} milestones, ${usd(r.total_cents ?? 0)}).`
         : `${i.by} accepted the work agreement for ${i.client}: ${r.milestones} milestone${r.milestones === 1 ? "" : "s"}, ${usd(r.total_cents ?? 0)}. Fingerprint ${r.hash}.`;
+    case "milestone.auto_approved":
+      return `"${r.milestone}" counts as approved: ${r.client} didn't reply within ${i.business_days ?? 5} business days of the delivery.`;
     case "pledge.signed":
       return `${i.by} signed the Member Pledge.`;
      case "portal.enabled":

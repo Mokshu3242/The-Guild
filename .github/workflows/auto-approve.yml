@@ -1,0 +1,19 @@
+name: Auto-approve deliveries
+
+on:
+  schedule:
+    - cron: "0 13 * * 1-5"   # weekdays 13:00 UTC (9 AM New York)
+  workflow_dispatch:
+
+jobs:
+  approve:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Wake the backend
+        run: curl -sS --max-time 90 https://guild-backend-vqg5.onrender.com/ || true
+      - name: Approve deliveries with no client reply in 5 business days
+        env:
+          TASK_SECRET: ${{ secrets.TASK_SECRET }}
+        run: |
+          curl -fsS -X POST https://guild-backend-vqg5.onrender.com/tasks/auto-approve \
+            -H "X-Task-Secret: $TASK_SECRET" --max-time 120

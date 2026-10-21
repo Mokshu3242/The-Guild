@@ -14,6 +14,8 @@ interface Row {
   stage: Stage;
   delivered_at: string | null;
   approved_at: string | null;
+  approved_by: "" | "client" | "silence";
+  review_deadline: string | null;
   feedback: string;
   locked: boolean;
   in_agreement: boolean;
@@ -180,6 +182,12 @@ export function ClientPortalPanel({ jobId, onScopeFlag }: { jobId: string; onSco
                   <div className="flex min-w-0 flex-wrap items-center gap-2">
                     <span className="font-medium">{m.title}</span>
                     <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${l.cls}`}>{l.text}</span>
+                    {m.review_deadline && (
+                      <span className="text-xs text-muted">Counts as approved {day(m.review_deadline)}</span>
+                    )}
+                    {m.approved_by === "silence" && (
+                      <span className="text-xs text-muted">No reply in 5 business days</span>
+                    )}
                     {!m.in_agreement && !m.locked && m.stage !== "payment_due" && (
                       <span className="rounded-full border border-dashed border-seal/40 px-2 py-0.5 text-xs text-seal">
                         Not agreed yet
@@ -227,6 +235,15 @@ export function ClientPortalPanel({ jobId, onScopeFlag }: { jobId: string; onSco
             );
           })}
         </ul>
+      )}
+
+      {data.can_manage && data.milestones.length > 0 && (
+        <p className="mt-3 text-xs text-muted">
+          Need proof for a claim or a PayPal dispute?{" "}
+          <a href={`/jobs/evidence/?id=${jobId}`} className="font-medium text-guild-deep hover:underline">
+            Open the evidence pack
+          </a>
+        </p>
       )}
 
       {hasFeedback && onScopeFlag && (
