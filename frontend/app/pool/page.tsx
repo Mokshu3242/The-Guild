@@ -8,6 +8,7 @@ import { useMe } from "@/lib/useMe";
 import { Button, ErrorText, Notice, PageHeader, Panel, StatusPill, buttonCls } from "@/components/ui";
 import { PoolBalance } from "@/components/PoolBalance";
 import { PoolForecast } from "@/components/PoolForecast";
+import { RecoveryCard } from "@/components/RecoveryCard";
 
 interface Pool { pool_balance_cents: number; monthly_fee_cents: number; active_subscribers: number; plan_ready: boolean }
 interface Sub { status: string; approve_url: string }
@@ -19,6 +20,8 @@ const SOURCE: Record<string, string> = {
   recovery: "Recovered when a late client paid",
   claim_payout: "Covered a member's unpaid invoice",
   founding: "Founding members' starting contribution",
+  set_off: "Paid back from a member's payout",
+  referral_fronted: "Paid a referrer early (client paid a member directly)",
 };
 
 export default function PoolPage() {
@@ -63,6 +66,8 @@ export default function PoolPage() {
       </section>
 
       <PoolForecast isAdmin={me?.role === "admin"} />
+
+      <RecoveryCard isAdmin={me?.role === "admin"} />
 
       <div className="grid gap-6 lg:grid-cols-[1fr_1.4fr]">
       <Panel title="Your monthly contribution">

@@ -50,6 +50,7 @@ interface SyncResult {
   paypal_status?: string;
   worker_cents?: number;
   recovered_cents?: number;
+  set_off_cents?: number;
 }
 interface DepositRow {
   id: string;
@@ -97,6 +98,7 @@ function JobPage() {
   const [notice, setNotice] = useState<string | null>(null);
   const [pick, setPick] = useState<MatchPick | null>(null);
   const [claimFor, setClaimFor] = useState<string | null>(null);
+  const [directFor, setDirectFor] = useState<string | null>(null);
   const [splitOverlay, setSplitOverlay] = useState<SplitData | null>(null);
 
   async function run(key: string, fn: () => Promise<void>) {
@@ -203,7 +205,7 @@ function JobPage() {
             splitFor(ms.amount, "invoice", r.recovered_cents ?? 0),
           );
         setNotice(
-          `Paid. ${usd(r.worker_cents ?? 0)} sent to the worker${r.recovered_cents ? `, and ${usd(r.recovered_cents)} returned to the pool` : ""}.`,
+          `Paid. ${usd(r.worker_cents ?? 0)} sent to the worker${r.recovered_cents ? `, and ${usd(r.recovered_cents)} returned to the pool` : ""}${r.set_off_cents ? `. ${usd(r.set_off_cents)} went to the pool for money a member owed` : ""}.`,
         );
       } else if (r.status === "already_paid") {
         setNotice("Already paid and split.");
@@ -508,11 +510,34 @@ function JobPage() {
                           Client isn't paying
                         </Button>
                       )}
+                      {isWorker && job.status !== "disputed" && (
+                        <Button
+                          variant="quiet"
+                          disabled={!!busy}
+                          onClick={() =>
+                            setDirectFor(directFor === inv.id ? null : inv.id)
+                          }
+                        >
+                          Client paid me directly
+                        </Button>
+                      )}
                     </>
                   )}
                 </div>
 
                 {inv && <ReminderHistory invoiceId={inv.id} />}
+
+                {directFor === inv?.id && inv && (
+                  <DirectPaymentForm
+                    invoiceCents={inv.amount}
+                    invoiceId={inv.id}
+                    onDone={(msg) => {
+                      setDirectFor(null);
+                      setNotice(msg);
+                      refreshAll();
+                    }}
+                  />
+                )}
 
                 {claimFor === inv?.id && inv && (
                   <ClaimForm
@@ -1116,6 +1141,64 @@ function ClaimForm({
       <Button variant="danger" disabled={busy}>
         {busy ? "Filing and reviewing…" : "File claim"}
       </Button>
+    </form>
+  );
+}
+
+/* ---------------- Paid directly (12A) ---------------- */
+
+function DirectPaymentForm({
+  invoiceId,
+  invoiceCents,
+  onDone,
+}: {
+  invoiceId: string;
+  invoiceCents: number;
+  onDone: (msg: string) => void;
+}) {
+  const [method, setMethod] = useState("bank");
+  const [note, setNote] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
+
+  async function submit(e: React.FormEvent) {
+    e.preventDefault();
+    setBusy(true);
+    setErr(null);
+    try {
+      await apiPost(`/recovery/invoices/${invoiceId}/direct`, { method, note });
+      onDone(
+        "Thanks for being honest. An admin will close the invoice. The guild's share comes off your next payout.",
+      );
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : "Couldn't send the report");
+      setBusy(false);
+    }
+  }
+
+  return (
+    <form onSubmit={submit} className="mt-4 space-y-3 rounded-md bg-paper p-4">
+      <p className="text-sm">
+        Did the client pay you the full {usd(invoiceCents)} outside PayPal? Tell the guild. The invoice gets closed, the
+        referrer is paid from the pool right away, and the guild&apos;s share is taken from your next payout. Nothing
+        else to do.
+      </p>
+      <div className="flex flex-col gap-2 sm:flex-row">
+        <select value={method} onChange={(e) => setMethod(e.target.value)} className={`${inputCls} sm:w-44`}>
+          <option value="bank">Bank transfer</option>
+          <option value="cash">Cash</option>
+          <option value="other">Something else</option>
+        </select>
+        <input
+          value={note}
+          onChange={(e) => setNote(e.target.value)}
+          maxLength={500}
+          className={inputCls}
+          placeholder="When and how, like: Bank transfer on Oct 20"
+        />
+      </div>
+      <ErrorText>{err}</ErrorText>
+      <Button disabled={busy}>{busy ? "Sending…" : "Report the payment"}</Button>
     </form>
   );
 }

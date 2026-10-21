@@ -3,6 +3,7 @@ from sqlmodel import Session, select
 from app.models import AgentAction, Claim, Guild, Invoice, Job, Member, Milestone, Payout, PoolTx
 from app.services import paypal_payouts
 from app.services.job_status import settle_job_status
+from app.services.recovery import log_debt_transferred
 
 
 def pay_claim(
@@ -100,6 +101,8 @@ def pay_claim(
         },
         result={"amount_cents": amount, "pool_after": guild.pool_balance, "batch_id": batch_id},
     ))
+    # 12A: the guild now owns this debt. Reminders keep going and the pool is refilled when the client pays.
+    log_debt_transferred(session, claim, job, amount)
     return {
         "status": "paid",
         "claim_id": str(claim.id),

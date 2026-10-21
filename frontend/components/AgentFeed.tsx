@@ -51,6 +51,13 @@ const WHO: Record<string, { tag: string; cls: string }> = {
   "agreement.accepted": { tag: "Client", cls: "bg-guild-soft text-guild" },
   "pledge.signed": { tag: "Human", cls: "bg-ink text-white" },
   "milestone.auto_approved": { tag: "Rule", cls: "bg-seal-soft text-seal" },
+  "recovery.debt_transferred": { tag: "Rule", cls: "bg-seal-soft text-seal" },
+  "recovery.pool_refilled": { tag: "Rule", cls: "bg-seal-soft text-seal" },
+  "recovery.set_off": { tag: "Rule", cls: "bg-seal-soft text-seal" },
+  "recovery.written_off": { tag: "Human", cls: "bg-ink text-white" },
+  "direct_payment.reported": { tag: "Human", cls: "bg-ink text-white" },
+  "direct_payment.settled": { tag: "Human", cls: "bg-ink text-white" },
+  "direct_payment.rejected": { tag: "Human", cls: "bg-ink text-white" },
 };
 
 function describe(a: Action): string {
@@ -67,6 +74,22 @@ function describe(a: Action): string {
         : `${i.by} accepted the work agreement for ${i.client}: ${r.milestones} milestone${r.milestones === 1 ? "" : "s"}, ${usd(r.total_cents ?? 0)}. Fingerprint ${r.hash}.`;
     case "milestone.auto_approved":
       return `"${r.milestone}" counts as approved: ${r.client} didn't reply within ${i.business_days ?? 5} business days of the delivery.`;
+    case "recovery.debt_transferred":
+      return `The guild took over ${r.client}'s debt after covering ${usd(r.covered_cents ?? 0)}. Reminders keep going.`;
+    case "recovery.pool_refilled":
+      return r.whole
+        ? `${r.client} paid. The pool got all ${usd(r.covered_cents ?? 0)} back.`
+        : `${r.client} paid part. ${usd(r.recovered_cents ?? 0)} of ${usd(r.covered_cents ?? 0)} is back in the pool.`;
+    case "recovery.set_off":
+      return `${usd(r.taken_cents ?? 0)} of ${i.member}'s payout from ${r.client} went to the pool for what they owe.`;
+    case "recovery.written_off":
+      return `${i.by} wrote off ${usd(r.cents ?? 0)} ${i.member} owed. "${r.note}"`;
+    case "direct_payment.reported":
+      return `${i.by} said ${r.client} paid them ${usd(r.amount_cents ?? 0)} outside PayPal.`;
+    case "direct_payment.settled":
+      return `${i.by} closed ${r.client}'s invoice as paid directly to ${i.member}. ${i.member} owes the guild ${usd(r.owed_cents ?? 0)}.`;
+    case "direct_payment.rejected":
+      return `${i.by} rejected a direct payment report.${r.note ? ` "${r.note}"` : ""}`;
     case "pledge.signed":
       return `${i.by} signed the Member Pledge.`;
      case "portal.enabled":

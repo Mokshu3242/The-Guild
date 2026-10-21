@@ -33,7 +33,7 @@ from sqlmodel import Session, delete, select
 
 from app.db import engine
 from app.models import (
-    AgentAction, Agreement, Broadcast, Claim, Deposit, Guild, GuildDigest, Invoice, Job, MaintenanceWindow, Member,
+    AgentAction, Agreement, Broadcast, DirectPayment, MemberDebt, Claim, Deposit, Guild, GuildDigest, Invoice, Job, MaintenanceWindow, Member,
     Milestone, Payout, PoolTx, Reminder, ScopeFlag, Subscription, WebhookEvent, utcnow,
 )
 from app.services.agreements import PLEDGE_VERSION, WORK_VERSION, render_pledge, render_work, sha256
@@ -81,7 +81,7 @@ def remember_paypal_links(session: Session) -> dict:
 
 def wipe(session: Session) -> None:
     # Children first, so no foreign key blocks a delete.
-    for model in (Agreement, GuildDigest, Broadcast, MaintenanceWindow, ScopeFlag, Deposit, Reminder, AgentAction,
+    for model in (MemberDebt, DirectPayment, Agreement, GuildDigest, Broadcast, MaintenanceWindow, ScopeFlag, Deposit, Reminder, AgentAction,
                   Claim, Payout, PoolTx, Subscription, WebhookEvent, Invoice, Milestone, Job, Member, Guild):
         session.exec(delete(model))
     session.commit()

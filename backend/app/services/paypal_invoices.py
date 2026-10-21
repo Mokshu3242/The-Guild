@@ -72,3 +72,22 @@ def remind_invoice(paypal_invoice_id: str, tier: int, subject: str, note: str) -
         timeout=30,
     )
     r.raise_for_status()
+
+
+def record_payment(paypal_invoice_id: str, amount_cents: int, method: str, note: str, paid_on: str) -> None:
+    """Tell PayPal the invoice was paid outside PayPal, so it stops reminding the client.
+
+    method: CASH | BANK_TRANSFER | OTHER. paid_on: YYYY-MM-DD.
+    """
+    r = httpx.post(
+        f"{_base()}/v2/invoicing/invoices/{paypal_invoice_id}/payments",
+        headers={**auth_headers(), "PayPal-Request-Id": f"DIRECT-{paypal_invoice_id}"},
+        json={
+            "method": method,
+            "payment_date": paid_on,
+            "amount": {"currency_code": "USD", "value": usd(amount_cents)},
+            "note": note[:500],
+        },
+        timeout=30,
+    )
+    r.raise_for_status()

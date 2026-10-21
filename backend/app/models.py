@@ -170,6 +170,9 @@ class Claim(SQLModel, table=True):
     admin_note: str = ""
     ai_mediation_cents: int = 0
     ai_mediation_reason: str = ""
+    # 12A: money that came back to the pool after the client finally paid.
+    recovered_cents: int = 0
+    recovered_at: Optional[datetime] = optional_time()
     payout_id: Optional[UUID] = Field(default=None, foreign_key="payouts.id")
     created_at: datetime = created_field()
 
@@ -330,4 +333,43 @@ class Agreement(SQLModel, table=True):
     ip: str = ""
     user_agent: str = ""
     accepted_at: datetime = created_field()
+
+
+class DirectPayment(SQLModel, table=True):
+    """A member says the client paid them outside the guild invoice (pledge clause 4)."""
+    __tablename__ = "direct_payments"
+
+    id: UUID = Field(default_factory=uuid4, primary_key=True)
+    guild_id: UUID = Field(foreign_key="guilds.id", index=True)
+    invoice_id: UUID = Field(foreign_key="invoices.id", index=True)
+    member_id: UUID = Field(foreign_key="members.id", index=True)
+    amount_cents: int = 0          # what the member says they received
+    method: str = "other"          # cash | bank | other
+    note: str = ""
+    status: str = "reported"       # reported | settled | rejected
+    owed_cents: int = 0            # what the member owes the guild after settling
+    decided_by: str = ""
+    decision_note: str = ""
+    created_at: datetime = created_field()
+    decided_at: Optional[datetime] = optional_time()
+
+
+class MemberDebt(SQLModel, table=True):
+    """Money a member owes the guild. Taken from their next payouts first (set-off).
+
+    kind: direct_payment now, advance in 12B.
+    """
+    __tablename__ = "member_debts"
+
+    id: UUID = Field(default_factory=uuid4, primary_key=True)
+    guild_id: UUID = Field(foreign_key="guilds.id", index=True)
+    member_id: UUID = Field(foreign_key="members.id", index=True)
+    kind: str = "direct_payment"
+    source_id: str = ""            # the DirectPayment (or Advance) id
+    amount_cents: int = 0
+    repaid_cents: int = 0
+    status: str = "open"           # open | repaid | written_off
+    note: str = ""
+    created_at: datetime = created_field()
+    closed_at: Optional[datetime] = optional_time()
 
