@@ -7,12 +7,12 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlmodel import Session, select
 
 from app.db import get_session
-from app.deps import get_current_member
-from app.services.deposits import active_deposit
-from app.services import paypal_invoices
-from app.services.money import process_paid_invoice
 from app.deps import get_current_member, require_admin
 from app.models import Invoice, Job, Member, Milestone, Reminder, utcnow
+from app.services import paypal_invoices
+from app.services.deposits import active_deposit
+from app.services.money import process_paid_invoice
+from app.services.portal import ensure_token, portal_url
 from app.services.reminders import remind_one
 
 logger = logging.getLogger(__name__)
@@ -33,6 +33,15 @@ def _invoice_in_my_guild(session: Session, invoice_id: UUID, me: Member):
     if job.guild_id != me.guild_id:
         raise HTTPException(404, "Invoice not found")
     return invoice, milestone, job
+
+
+def _invoice_note(job: Job) -> str:
+    """The PayPal invoice note. PayPal shows it in the client's email, so the portal link reaches them."""
+    note = f"Milestone for {job.client_name}"
+    link = portal_url(job)
+    if link:
+        note += f". Follow the project and approve work here: {link}"
+    return note
 
 
 @router.post("/milestones/{milestone_id}/send")
@@ -61,6 +70,13 @@ def send_milestone_invoice(
     if invoice and invoice.status in ("sent", "paid"):
         raise HTTPException(400, f"Invoice already {invoice.status}")
 
+    # Every invoiced job gets a client link, so it can go in the PayPal email.
+    if not job.portal_token:
+        ensure_token(job)
+        session.add(job)
+        session.commit()
+        session.refresh(job)
+
     try:
         # Step 1: create a draft and save it right away
         if invoice is None:
@@ -69,7 +85,7 @@ def send_milestone_invoice(
                 client_email=job.client_email,
                 amount_cents=milestone.amount,
                 item_name=milestone.title,
-                note=f"Milestone for {job.client_name}",
+                note=_invoice_note(job),
             )
             invoice = Invoice(
                 milestone_id=milestone.id,
@@ -148,6 +164,7 @@ def sync_invoice(
     result = process_paid_invoice(session, invoice.id, source="sync")
     session.commit()
     return result
+
 
 @router.post("/{invoice_id}/remind")
 def remind_now(

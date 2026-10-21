@@ -9,6 +9,7 @@ from app.routers import autopilot
 from app.routers import agent, claims, deposits, guilds, invoices, jobs, members, milestones, pool, tasks, webhooks, member_badges
 from app.routers import platform
 from app.routers import digest
+from app.routers import portal
 
 
 logging.basicConfig(level=logging.INFO)
@@ -55,3 +56,5 @@ app.include_router(member_badges.router)
 app.include_router(autopilot.router)
 app.include_router(platform.router)
 app.include_router(digest.router)
+app.include_router(portal.router)
+app.include_router(portal.member_router)

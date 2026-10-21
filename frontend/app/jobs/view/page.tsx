@@ -13,6 +13,7 @@ import { SplitBar } from "@/components/SplitBar";
 import { MoneyFlow, type SplitData } from "@/components/MoneyFlow";
 import { AiThinking } from "@/components/AiThinking";
 import { SkillGapPanel, type SkillGapResult } from "@/components/SkillGapPanel";
+import { ClientPortalPanel } from "@/components/ClientPortalPanel";
 import {
   Button,
   ErrorText,
@@ -217,7 +218,9 @@ function JobPage() {
       <div>
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="flex min-w-0 flex-wrap items-center gap-3">
-            <h1 className="min-w-0 break-words font-display text-3xl font-bold tracking-tight sm:text-4xl">{job.client_name}</h1>
+            <h1 className="min-w-0 break-words font-display text-3xl font-bold tracking-tight sm:text-4xl">
+              {job.client_name}
+            </h1>
             <StatusPill status={job.status} />
           </div>
           {canDelete && (
@@ -225,7 +228,12 @@ function JobPage() {
               variant="danger"
               disabled={!!busy}
               onClick={() => {
-                if (!window.confirm(`Delete the job for ${job.client_name}? Its milestones go too. This can't be undone.`)) return;
+                if (
+                  !window.confirm(
+                    `Delete the job for ${job.client_name}? Its milestones go too. This can't be undone.`,
+                  )
+                )
+                  return;
                 run("delete-job", async () => {
                   await apiDelete(`/jobs/${id}`);
                   mutate("jobs");
@@ -252,16 +260,18 @@ function JobPage() {
 
       {isOwner && <ClientRiskPanel job={job} onChange={refreshJob} />}
 
-      {isOwner && !job.worker_id && ["open", "matched"].includes(job.status) && (
-        <SkillGapPanel
-          jobId={job.id}
-          clientName={job.client_name}
-          guildName={guild?.name}
-          inviteCode={me.role === "admin" ? guild?.invite_code : undefined}
-          initial={(job.skill_gap as SkillGapResult | null) ?? null}
-          onChange={refreshJob}
-        />
-      )}
+      {isOwner &&
+        !job.worker_id &&
+        ["open", "matched"].includes(job.status) && (
+          <SkillGapPanel
+            jobId={job.id}
+            clientName={job.client_name}
+            guildName={guild?.name}
+            inviteCode={me.role === "admin" ? guild?.invite_code : undefined}
+            initial={(job.skill_gap as SkillGapResult | null) ?? null}
+            onChange={refreshJob}
+          />
+        )}
 
       <Panel title="What the client needs">
         <p className="max-w-prose leading-relaxed">{job.description}</p>
@@ -327,6 +337,7 @@ function JobPage() {
           Assign a worker to see how each payment splits and to send invoices.
         </p>
       )}
+      <ClientPortalPanel jobId={id} />
 
       <Panel title="Milestones">
         {(milestones ?? []).length === 0 && (
@@ -339,7 +350,10 @@ function JobPage() {
             const inv = invoiceFor(m.id);
             const held = hasActiveDeposit(m.id);
             return (
-              <li key={m.id} className="rounded-xl border border-line p-4 sm:p-5">
+              <li
+                key={m.id}
+                className="rounded-xl border border-line p-4 sm:p-5"
+              >
                 <div className="flex flex-wrap items-start justify-between gap-3">
                   <div>
                     <p className="font-medium">

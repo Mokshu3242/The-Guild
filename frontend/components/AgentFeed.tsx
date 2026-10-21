@@ -42,6 +42,12 @@ const WHO: Record<string, { tag: string; cls: string }> = {
   "skill.gap_checked": { tag: "AI", cls: "bg-guild-soft text-guild" },
   "job.removed": { tag: "Human", cls: "bg-ink text-white" },
   "pool.forecast": { tag: "AI", cls: "bg-guild-soft text-guild" },
+   "portal.enabled": { tag: "Human", cls: "bg-ink text-white" },
+   "portal.rotated": { tag: "Human", cls: "bg-ink text-white" },
+   "portal.disabled": { tag: "Human", cls: "bg-ink text-white" },
+   "milestone.delivered": { tag: "Human", cls: "bg-ink text-white" },
+   "portal.client_approved": { tag: "Client", cls: "bg-guild-soft text-guild" },
+   "portal.client_changes": { tag: "Client", cls: "bg-seal-soft text-seal" },
 };
 
 function describe(a: Action): string {
@@ -52,6 +58,18 @@ function describe(a: Action): string {
       return `Matched ${r.top_name ?? "a member"} to a job${r.backup_name ? `, with ${r.backup_name} as backup` : ""}. ${r.reason ?? ""}`;
     case "digest.published":
       return "Wrote the weekly digest.";
+     case "portal.enabled":
+     return `${i.by} made a client link for ${r.client}.`;
+   case "portal.rotated":
+     return `${i.by} replaced the client link for ${r.client}. The old link stopped working.`;
+   case "portal.disabled":
+     return `${i.by} turned off the client link for ${r.client}.`;
+   case "milestone.delivered":
+     return `${i.by} delivered "${r.milestone}"${i.again ? " again, after changes" : ""}.`;
+   case "portal.client_approved":
+     return `${i.by} approved "${r.milestone}".`;
+   case "portal.client_changes":
+     return `${i.by} asked for changes on "${r.milestone}": "${r.feedback}"`;
     case "job.removed":
       return `${i.by ?? "A member"} deleted the job for ${r.client ?? "a client"}${r.milestones ? ` and its ${r.milestones} milestone${r.milestones === 1 ? "" : "s"}` : ""}.`;
     case "invoice.paid.split":

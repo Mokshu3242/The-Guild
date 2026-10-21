@@ -74,6 +74,8 @@ class Job(SQLModel, table=True):
     skill_coverage: str = ""
     skill_gap: dict | None = Field(default=None, sa_column=Column(JSON))
     created_at: datetime = created_field()
+    portal_token: Optional[str] = Field(default=None, index=True, unique=True)
+    portal_token_created_at: Optional[datetime] = optional_time()
 
 
 class Milestone(SQLModel, table=True):
@@ -86,6 +88,11 @@ class Milestone(SQLModel, table=True):
     amount: int
     due_date: Optional[datetime] = optional_time()
     status: str = "pending"
+    delivered_at: Optional[datetime] = optional_time()
+    delivery_note: str = ""
+    client_approved_at: Optional[datetime] = optional_time()
+    client_changes_requested_at: Optional[datetime] = optional_time()
+    client_feedback: str = ""
 
 
 class Invoice(SQLModel, table=True):

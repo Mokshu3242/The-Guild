@@ -109,8 +109,8 @@ function UserMenu({ email }: { email: string }) {
             <div className="flex items-center gap-3 border-b border-line px-4 py-3">
               <Avatar name={name} url={me?.avatar_url} size={40} />
               <div className="min-w-0">
-              <p className="truncate font-medium">{name}</p>
-              <p className="truncate text-xs text-muted">{email}</p>
+                <p className="truncate font-medium">{name}</p>
+                <p className="truncate text-xs text-muted">{email}</p>
               </div>
             </div>
             {earnings && (
@@ -150,7 +150,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const isLogin = pathname === "/login";
   const isMaintenance = pathname === "/maintenance";
   const isPlatform = pathname.startsWith("/platform");
-  const isPublic = pathname === "/" || isLogin;
+  // The client page is opened by clients with a private link. They never log in.
+  const isPortal = pathname.startsWith("/portal");
+  const isPublic = pathname === "/" || isLogin || isPortal;
   const [email, setEmail] = useState<string | null>(null);
   const [ready, setReady] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
