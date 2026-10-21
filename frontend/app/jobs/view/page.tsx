@@ -229,6 +229,11 @@ function JobPage() {
               {job.client_name}
             </h1>
             <StatusPill status={job.status} />
+            {job.source === "api" && (
+              <span className="rounded-full bg-guild-soft px-2.5 py-1 text-xs font-medium text-guild">
+                Hired by the client&apos;s AI agent
+              </span>
+            )}
           </div>
           {canDelete && (
             <Button

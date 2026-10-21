@@ -63,6 +63,11 @@ const WHO: Record<string, { tag: string; cls: string }> = {
   "advance.declined": { tag: "Human", cls: "bg-ink text-white" },
   "advance.repaid": { tag: "Rule", cls: "bg-seal-soft text-seal" },
   "advance.defaulted": { tag: "Rule", cls: "bg-seal-soft text-seal" },
+  "api_key.created": { tag: "Human", cls: "bg-ink text-white" },
+  "api_key.revoked": { tag: "Human", cls: "bg-ink text-white" },
+  "hire.quoted": { tag: "AI", cls: "bg-guild-soft text-guild" },
+  "hire.received": { tag: "Agent", cls: "bg-seal-soft text-seal" },
+  "hire.matched": { tag: "AI", cls: "bg-guild-soft text-guild" },
 };
 
 function describe(a: Action): string {
@@ -105,6 +110,16 @@ function describe(a: Action): string {
       return `${r.client} paid. The pool took back the ${usd(r.advance_cents ?? 0)} advance and its ${usd(r.fee_cents ?? 0)} fee first.`;
     case "advance.defaulted":
       return `${r.client} hasn't paid ${r.days ?? 45} days after the advance. ${i.member} now owes ${usd(r.owed_cents ?? 0)}, taken from their next payouts.`;
+    case "api_key.created":
+      return `${i.by} made an API key "${r.name}" so a client's AI can hire the guild.`;
+    case "api_key.revoked":
+      return `${i.by} turned off the API key "${r.name}". It stopped working right away.`;
+    case "hire.quoted":
+      return `A client's AI asked for a quote through "${i.key}". Quoted ${r.milestones} milestone${r.milestones === 1 ? "" : "s"}, ${usd(r.total_cents ?? 0)}${r.budget_cents ? ", matching their budget" : ""}.`;
+    case "hire.received":
+      return `${r.client}'s AI hired the guild through "${i.key}": ${r.milestones} milestone${r.milestones === 1 ? "" : "s"}, ${usd(r.total_cents ?? 0)}. ${r.referrer} is the referrer.`;
+    case "hire.matched":
+      return `Picked ${r.worker} for ${r.client}'s agent hire. ${r.reason ?? ""}`;
     case "pledge.signed":
       return `${i.by} signed the Member Pledge.`;
      case "portal.enabled":

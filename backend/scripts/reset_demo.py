@@ -33,7 +33,7 @@ from sqlmodel import Session, delete, select
 
 from app.db import engine
 from app.models import (
-    Advance, AgentAction, Agreement, Broadcast, DirectPayment, MemberDebt, Claim, Deposit, Guild, GuildDigest, Invoice, Job, MaintenanceWindow, Member,
+    Advance, AgentAction, Agreement, ApiKey, Quote, Broadcast, DirectPayment, MemberDebt, Claim, Deposit, Guild, GuildDigest, Invoice, Job, MaintenanceWindow, Member,
     Milestone, Payout, PoolTx, Reminder, ScopeFlag, Subscription, WebhookEvent, utcnow,
 )
 from app.services.agreements import PLEDGE_VERSION, WORK_VERSION, render_pledge, render_work, sha256
@@ -76,13 +76,20 @@ def remember_paypal_links(session: Session) -> dict:
         for mem in session.exec(select(Member)).all()
         if getattr(mem, "avatar_url", "")
     }
-    return {"plan_id": old_guild.paypal_plan_id if old_guild else "", "subs": subs, "avatars": avatars}
+    # API keys (13A) are pasted into Claude Desktop, so keep working keys across a reset.
+    keys = []
+    for k in session.exec(select(ApiKey).where(ApiKey.active == True)).all():  # noqa: E712
+        owner = session.get(Member, k.member_id)
+        if owner:
+            keys.append(dict(email=owner.email, name=k.name, prefix=k.prefix, key_hash=k.key_hash))
+    return {"plan_id": old_guild.paypal_plan_id if old_guild else "", "subs": subs, "avatars": avatars,
+            "api_keys": keys}
 
 
 def wipe(session: Session) -> None:
     # Children first, so no foreign key blocks a delete.
-    for model in (Advance, MemberDebt, DirectPayment, Agreement, GuildDigest, Broadcast, MaintenanceWindow, ScopeFlag, Deposit, Reminder, AgentAction,
-                  Claim, Payout, PoolTx, Subscription, WebhookEvent, Invoice, Milestone, Job, Member, Guild):
+    for model in (Quote, Advance, MemberDebt, DirectPayment, Agreement, GuildDigest, Broadcast, MaintenanceWindow, ScopeFlag, Deposit, Reminder, AgentAction,
+                  Claim, Payout, PoolTx, Subscription, WebhookEvent, Invoice, Milestone, Job, ApiKey, Member, Guild):
         session.exec(delete(model))
     session.commit()
 
@@ -120,6 +127,13 @@ def seed(session: Session, kept: dict) -> None:
                 guild_id=guild.id, member_id=owner.id, paypal_subscription_id=s["paypal_id"],
                 status=s["status"], approve_url=s["approve_url"], activated_at=s["activated_at"],
             ))
+
+    # Restore API keys, so an agent set up before the reset keeps working
+    for k in kept.get("api_keys", []):
+        owner = next((mem for mem in m.values() if mem.email == k["email"] and mem.role == "admin"), None)
+        if owner:
+            session.add(ApiKey(guild_id=guild.id, member_id=owner.id, name=k["name"], prefix=k["prefix"],
+                               key_hash=k["key_hash"]))
 
     # Job 1: open, waiting for the AI
     session.add(Job(
@@ -239,6 +253,7 @@ def seed(session: Session, kept: dict) -> None:
     print(f"Pool: ${guild.pool_balance // 100}.{guild.pool_balance % 100:02d}")
     print(f"Plan kept: {bool(kept['plan_id'])}. Subscriptions restored: {len(kept['subs'])}")
     print(f"Profile photos kept: {len(kept.get('avatars', {}))}")
+    print(f"API keys kept: {len(kept.get('api_keys', []))}")
     print(f"Gary Ghost invoice (unpaid, {GHOST_DAYS_UNPAID} days old): {pp_id}")
 
 

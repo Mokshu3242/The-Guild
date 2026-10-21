@@ -2,10 +2,13 @@
 
 import { useState } from "react";
 import { AgentFeed } from "@/components/AgentFeed";
+import { ApiKeysPanel } from "@/components/ApiKeysPanel";
+import { useMe } from "@/lib/useMe";
 import { PageHeader, Panel } from "@/components/ui";
 
 export default function AgentPage() {
   const [limit, setLimit] = useState(50);
+  const { me } = useMe();
   return (
     <div className="space-y-6">
       <PageHeader
@@ -26,9 +29,11 @@ export default function AgentPage() {
           </label>
         }
       />
+      {me?.role === "admin" && <ApiKeysPanel />}
       <Panel>
         <AgentFeed limit={limit} showRaw />
       </Panel>
     </div>
   );
 }
+

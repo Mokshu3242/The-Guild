@@ -79,6 +79,9 @@ class Job(SQLModel, table=True):
     # Plain-English summary of the work agreement, and the agreement text hash it was written for.
     agreement_summary: str = ""
     agreement_summary_hash: str = ""
+    # 13A: how the job came in. manual, or api (a client's agent hired the guild with an API key).
+    source: str = "manual"
+    api_key_id: Optional[UUID] = Field(default=None, foreign_key="api_keys.id")
 
 
 class Milestone(SQLModel, table=True):
@@ -400,3 +403,44 @@ class Advance(SQLModel, table=True):
     created_at: datetime = created_field()
     paid_at: Optional[datetime] = optional_time()
     closed_at: Optional[datetime] = optional_time()
+
+
+class ApiKey(SQLModel, table=True):
+    """13A. A key a client's AI agent uses to get quotes and hire the guild.
+
+    Only the SHA-256 of the key is stored. The key itself is shown once.
+    The admin who made the key is the referrer on jobs that come in through it.
+    """
+    __tablename__ = "api_keys"
+
+    id: UUID = Field(default_factory=uuid4, primary_key=True)
+    guild_id: UUID = Field(foreign_key="guilds.id", index=True)
+    member_id: UUID = Field(foreign_key="members.id")
+    name: str = ""
+    prefix: str = ""
+    key_hash: str = Field(index=True, unique=True)
+    active: bool = True
+    request_count: int = 0
+    last_used_at: Optional[datetime] = optional_time()
+    created_at: datetime = created_field()
+    revoked_at: Optional[datetime] = optional_time()
+
+
+class Quote(SQLModel, table=True):
+    """13A. A priced plan made from a client's brief. Hiring means accepting a quote by id,
+    so an agent can never change the prices it was given."""
+    __tablename__ = "quotes"
+
+    id: UUID = Field(default_factory=uuid4, primary_key=True)
+    guild_id: UUID = Field(foreign_key="guilds.id", index=True)
+    api_key_id: UUID = Field(foreign_key="api_keys.id", index=True)
+    brief: str = ""
+    summary: str = ""
+    pricing_basis: str = ""
+    budget_cents: Optional[int] = None
+    milestones: list = Field(default_factory=list, sa_column=Column(JSON))
+    total_cents: int = 0
+    status: str = "open"            # open | hired
+    job_id: Optional[UUID] = Field(default=None, foreign_key="jobs.id")
+    created_at: datetime = created_field()
+    expires_at: datetime = created_field()

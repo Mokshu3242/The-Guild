@@ -10,7 +10,7 @@ class MatchPick(BaseModel):
     backup: str | None = None
     reason: str = Field(max_length=500)
 
-def match_job(session: Session, job: Job, feature) -> dict:
+def match_job(session: Session, job: Job, feature: str = "match") -> dict:
     candidates = session.exec(
         select(Member)
         .where(Member.guild_id == job.guild_id)

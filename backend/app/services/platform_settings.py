@@ -7,7 +7,7 @@ from sqlmodel import Session
 from app.models import PlatformSetting, utcnow
 
 TTL = 10.0
-FEATURES = {"match", "scope", "claim", "reminder", "deposit_review", "risk", "autopilot", "rate", "forecast", "digest", "agreement", "advance"}
+FEATURES = {"match", "scope", "claim", "reminder", "deposit_review", "risk", "autopilot", "rate", "forecast", "digest", "agreement", "advance", "hire"}
 
 _cache: dict[str, tuple[Any, float]] = {}
 

@@ -40,6 +40,7 @@ export interface Job {
   client_risk_reason: string;
   skill_coverage?: string;
   skill_gap?: unknown;
+  source?: string;
 }
 
 const RISK: Record<string, string> = {

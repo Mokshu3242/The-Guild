@@ -45,6 +45,7 @@ const FEATURES = [
   { key: "digest", label: "Weekly digest" },
   { key: "agreement", label: "Agreement summary" },
   { key: "advance", label: "Advance note" },
+  { key: "hire", label: "Agent quotes" },
 ];
 
 const ACTION_LABEL: Record<string, string> = {
