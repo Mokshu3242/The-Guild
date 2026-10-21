@@ -2,6 +2,7 @@ from sqlmodel import Session, select
 
 from app.models import AgentAction, Claim, Guild, Invoice, Job, Member, Milestone, Payout, PoolTx
 from app.services import paypal_payouts
+from app.services.job_status import settle_job_status
 
 
 def pay_claim(
@@ -74,9 +75,10 @@ def pay_claim(
     claim.admin_decision = "approved" if amount == cap else "approved_partial"
     claim.admin_note = note
     claim.payout_id = payout.id
-    # The pool covered it, so the job is settled for the guild.
-    job.status = "covered"
-    session.add_all([payout, guild, claim, job])
+    session.add_all([payout, guild, claim])
+    session.flush()
+    # This milestone is covered. The job is "covered" only if nothing else is still open.
+    settle_job_status(session, job)
     session.add(PoolTx(
         guild_id=guild.id,
         amount=amount,

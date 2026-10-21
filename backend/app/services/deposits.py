@@ -112,6 +112,11 @@ def capture_deposit(session: Session, deposit_id: UUID, admin: Member) -> dict:
     milestone = session.get(Milestone, d.milestone_id)
     if not session.get(Job, milestone.job_id).worker_id:
         raise ValueError("Assign a worker before capturing, so the split knows who to pay")
+    if not milestone.delivered_at:
+        raise ValueError("Mark the milestone as delivered first, so the client can see what they're paying for")
+    asked = milestone.client_changes_requested_at
+    if asked and asked > milestone.delivered_at:
+        raise ValueError("The client asked for changes. Deliver again before capturing the deposit")
 
     capture_id = paypal_orders.capture_authorization(d.paypal_authorization_id, d.amount_cents)
     d.paypal_capture_id, d.status, d.captured_at = capture_id, "captured", utcnow()

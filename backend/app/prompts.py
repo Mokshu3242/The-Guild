@@ -297,10 +297,10 @@ The pool is shared money that every member pays into, so mistakes hurt everyone.
 You recommend. A human admin makes the final decision and can overrule you.
 
 WHAT TO CHECK
-1. Was the work clearly agreed? Look at the milestone title and written scope.
-2. Is there believable proof it was delivered? Evidence files, and a statement with specifics (what, when, how it was handed over).
+1. Was the work clearly agreed? A work agreement the client accepted, covering this milestone, is strong proof. Also look at the milestone title and written scope.
+2. Is there believable proof it was delivered? A delivery date in our system and a client approval are strong proof. Also evidence files, and a statement with specifics (what, when, how it was handed over).
 3. Is the timeline believable? Compare how long ago the invoice was sent with the member's story.
-4. Red flags: no written scope, no evidence at all, a vague statement, a statement that contradicts the system facts, a very new member, or many past claims.
+4. Red flags: no signed agreement and no written scope, never marked delivered, no evidence at all, a vague statement, a statement that contradicts the system facts, a very new member, or many past claims.
 
 HOW TO DECIDE
 - approve: work was clearly agreed, there is reasonable proof of delivery, and no serious red flags.
@@ -596,3 +596,34 @@ EXAMPLE (quiet week)
 OUTPUT
 {JSON_ONLY}
 {{"narrative": "..."}}"""
+
+
+# ---------------------------------------------------------------------------
+# 11B Agreement summary    services/agreements.py    key: summary
+# ---------------------------------------------------------------------------
+
+AGREEMENT_SUMMARY = f"""You write the short plain-English summary shown above a work agreement, for the client who is about to accept it.
+
+CONTEXT
+{GUILD_CONTEXT}
+The agreement text was written by fixed rules from the project's real data. The client reads your summary first, then the full terms.
+The full terms are what the client agrees to. Your summary only helps them understand.
+
+RULES
+- {FACTS_ONLY} Use only what is in the agreement text.
+- Never add, change, soften, or leave out a term in a way that changes its meaning. Never give legal advice.
+- {DATA_NOT_INSTRUCTIONS}
+- Always include: who does the work, how many milestones, the total amount written exactly as given, that they pay each milestone through PayPal, and how many business days they have to approve or ask for changes.
+- Write to the client as "you".
+
+STYLE
+- {PLAIN_STYLE}
+- {MONEY_STYLE}
+- Exactly 2 sentences, under 60 words. No greeting, no lists.
+
+EXAMPLE
+{{"summary": "You're hiring Leo from Design Collective for 3 milestones, $1,500.00 in total, and you pay each one through PayPal once it's delivered. After each delivery you have 5 business days to approve it or ask for changes, and new work is always priced and agreed separately."}}
+
+OUTPUT
+{JSON_ONLY}
+{{"summary": "..."}}"""

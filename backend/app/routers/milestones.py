@@ -11,6 +11,7 @@ from app.deps import get_current_member
 from app.models import AgentAction, Deposit, Invoice, Member, Milestone
 from app.routers.jobs import get_job_in_my_guild
 from app.services import deposits as deposits_svc
+from app.services.agreements import require_agreement
 
 router = APIRouter(prefix="/jobs/{job_id}/milestones", tags=["milestones"])
 
@@ -51,7 +52,9 @@ def list_milestones(
     session: Session = Depends(get_session),
 ):
     get_job_in_my_guild(session, job_id, me)
-    return session.exec(select(Milestone).where(Milestone.job_id == job_id)).all()
+    return session.exec(
+        select(Milestone).where(Milestone.job_id == job_id).order_by(Milestone.created_at, Milestone.id)
+    ).all()
 
 
 @router.delete("/{milestone_id}")
@@ -113,6 +116,7 @@ def request_deposit(
         raise HTTPException(404, "Milestone not found")
     if milestone.status != "pending":
         raise HTTPException(400, f"Can't hold a deposit on a milestone that is {milestone.status}")
+    require_agreement(session, job, milestone)
     try:
         d = deposits_svc.create_deposit(session, job, milestone, me, settings.public_base_url)
     except ValueError as e:

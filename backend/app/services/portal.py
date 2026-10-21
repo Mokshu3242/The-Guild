@@ -13,6 +13,7 @@ from sqlmodel import Session, select
 from app.config import settings
 from app.db import engine
 from app.models import AgentAction, Deposit, Guild, Invoice, Job, Member, Milestone, utcnow
+from app.services.agreements import work_state
 from app.services.notices import active_maintenance
 
 logger = logging.getLogger(__name__)
@@ -103,12 +104,17 @@ def stage(m: Milestone, inv: Invoice | None) -> str:
 
 
 def can_review(m: Milestone, inv: Invoice | None) -> bool:
-    """Client can approve or ask for changes once work is delivered (or invoiced), until it's paid."""
+    """Client can approve once work is delivered (or invoiced), until it's paid."""
     if m.status in LOCKED_MS or (inv and inv.status == "paid"):
         return False
     if m.client_approved_at or _changes_open(m):
         return False
     return bool(m.delivered_at or (inv and inv.status == "sent"))
+
+
+def can_change(m: Milestone, inv: Invoice | None) -> bool:
+    """Asking for changes only makes sense before the bill goes out. After that, approve or talk to the guild."""
+    return can_review(m, inv) and not (inv and inv.status == "sent")
 
 
 def _deposit_out(d: Deposit | None) -> dict | None:
@@ -143,6 +149,9 @@ def portal_view(session: Session, job: Job) -> dict:
     invs = _latest_by_ms(session.exec(select(Invoice).where(Invoice.milestone_id.in_(ids))).all()) if ids else {}
     deps = _latest_by_ms(session.exec(select(Deposit).where(Deposit.milestone_id.in_(ids))).all()) if ids else {}
 
+    agreement = work_state(session, job)
+    signed = set(agreement.pop("signed_ids"))
+
     rows = []
     for m in ms:
         inv = invs.get(m.id)
@@ -153,6 +162,8 @@ def portal_view(session: Session, job: Job) -> dict:
             "amount_cents": m.amount,
             "stage": stage(m, inv),
             "can_review": can_review(m, inv),
+            "can_change": can_change(m, inv),
+            "in_agreement": str(m.id) in signed,
             "delivered_at": m.delivered_at.isoformat() if m.delivered_at else None,
             "delivery_note": m.delivery_note,
             "approved_at": m.client_approved_at.isoformat() if m.client_approved_at else None,
@@ -170,16 +181,21 @@ def portal_view(session: Session, job: Job) -> dict:
         "description": job.description,
         "total_cents": total,
         "paid_cents": paid,
+        "client_email": job.client_email,
+        "agreement": agreement,
         "milestones": rows,
     }
 
 
-def _ms_for_client(session: Session, job: Job, milestone_id) -> tuple[Milestone, Invoice | None]:
+def _ms_for_client(session: Session, job: Job, milestone_id, changes: bool = False) -> tuple[Milestone, Invoice | None]:
     m = session.get(Milestone, milestone_id)
     if not m or m.job_id != job.id:
         raise HTTPException(404, "Milestone not found")
     inv = _latest_by_ms(session.exec(select(Invoice).where(Invoice.milestone_id == m.id)).all()).get(m.id)
-    if not can_review(m, inv):
+    allowed = can_change(m, inv) if changes else can_review(m, inv)
+    if not allowed:
+        if changes and inv and inv.status == "sent":
+            raise HTTPException(409, "This milestone is already invoiced. You can still approve it, or reply to the invoice email.")
         raise HTTPException(409, "This milestone isn't waiting for your review right now")
     return m, inv
 
@@ -197,7 +213,7 @@ def client_approve(session: Session, job: Job, milestone_id) -> None:
 
 
 def client_request_changes(session: Session, job: Job, milestone_id, feedback: str) -> None:
-    m, _ = _ms_for_client(session, job, milestone_id)
+    m, _ = _ms_for_client(session, job, milestone_id, changes=True)
     m.client_changes_requested_at = utcnow()
     m.client_feedback = feedback.strip()[:1500]
     session.add(m)
@@ -242,7 +258,14 @@ def member_view(session: Session, job: Job, me: Member) -> dict:
     ms = _milestones(session, job)
     ids = [m.id for m in ms]
     invs = _latest_by_ms(session.exec(select(Invoice).where(Invoice.milestone_id.in_(ids))).all()) if ids else {}
+    agreement = work_state(session, job)
+    signed = set(agreement["signed_ids"])
     return {
+        "agreement": {
+            "needs_signature": agreement["needs_signature"],
+            "new_titles": agreement["new_titles"],
+            "signed": agreement["signed"],
+        },
         "enabled": bool(job.portal_token),
         "path": portal_path(job) if can_manage(job, me) else "",
         "created_at": job.portal_token_created_at.isoformat() if job.portal_token_created_at else None,
@@ -257,6 +280,7 @@ def member_view(session: Session, job: Job, me: Member) -> dict:
                 "approved_at": m.client_approved_at.isoformat() if m.client_approved_at else None,
                 "feedback": m.client_feedback if _changes_open(m) else "",
                 "locked": m.status in LOCKED_MS,
+                "in_agreement": str(m.id) in signed,
             }
             for m in ms
         ],
@@ -279,3 +303,4 @@ def mark_delivered(session: Session, job: Job, m: Milestone, me: Member, note: s
         inputs={"job_id": str(job.id), "milestone_id": str(m.id), "by": me.name, "again": redelivery},
         result={"milestone": m.title},
     ))
+

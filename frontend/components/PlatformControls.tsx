@@ -43,6 +43,7 @@ const FEATURES = [
   { key: "rate", label: "Rate advice" },
   { key: "forecast", label: "Pool forecast" },
   { key: "digest", label: "Weekly digest" },
+  { key: "agreement", label: "Agreement summary" },
 ];
 
 const ACTION_LABEL: Record<string, string> = {
@@ -247,3 +248,4 @@ export function AuditLog() {
     </Panel>
   );
 }
+

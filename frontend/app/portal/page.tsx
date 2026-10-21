@@ -18,12 +18,36 @@ interface Ms {
   amount_cents: number;
   stage: Stage;
   can_review: boolean;
+  can_change: boolean;
+  in_agreement: boolean;
   delivered_at: string | null;
   delivery_note: string;
   approved_at: string | null;
   feedback: string;
   invoice: { status: string; pay_url: string; days_open: number } | null;
   deposit: { state: "needs_approval" | "on_hold"; amount_cents: number; approve_url: string } | null;
+}
+
+interface Signed {
+  kind: "work" | "amendment";
+  signer: string;
+  accepted_at: string;
+  hash: string;
+  milestones: number;
+  total_cents: number;
+  body: string;
+}
+
+interface Agreement {
+  needs_signature: boolean;
+  is_amendment: boolean;
+  new_titles: string[];
+  new_total_cents: number;
+  text: string;
+  hash: string;
+  summary: string;
+  summary_by: "ai" | "rules";
+  signed: Signed[];
 }
 
 interface View {
@@ -33,6 +57,8 @@ interface View {
   description: string;
   total_cents: number;
   paid_cents: number;
+  client_email: string;
+  agreement: Agreement;
   milestones: Ms[];
 }
 
@@ -128,6 +154,8 @@ function Portal() {
         </div>
       )}
 
+      <AgreementCard view={data} token={token} onChange={(v) => mutate(v, { revalidate: false })} />
+
       <h2 className="mt-8 font-display text-xl font-semibold">Milestones</h2>
       {data.milestones.length === 0 && (
         <p className="mt-2 text-sm text-muted">The plan for this project is still being written.</p>
@@ -220,13 +248,15 @@ function MilestoneCard({ m, token, onChange }: { m: Ms; token: string; onChange:
           >
             {busy ? "Saving…" : "Approve this work"}
           </button>
-          <button
-            disabled={busy}
-            onClick={() => setMode("changes")}
-            className="rounded-lg border border-line bg-white px-4 py-2 text-sm font-medium hover:bg-paper"
-          >
-            Ask for changes
-          </button>
+          {m.can_change && (
+            <button
+              disabled={busy}
+              onClick={() => setMode("changes")}
+              className="rounded-lg border border-line bg-white px-4 py-2 text-sm font-medium hover:bg-paper"
+            >
+              Ask for changes
+            </button>
+          )}
         </div>
       )}
 
@@ -278,3 +308,130 @@ function PayBox({ text, href, cta }: { text: string; href: string; cta: string }
     </div>
   );
 }
+
+function download(text: string, name: string) {
+  const blob = new Blob([text], { type: "text/plain;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = name;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+function AgreementCard({ view, token, onChange }: { view: View; token: string; onChange: (v: View) => void }) {
+  const a = view.agreement;
+  const [name, setName] = useState("");
+  const [read, setRead] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
+
+  if (!a.text) return null; // no milestones yet, nothing to agree to
+  const last = a.signed[a.signed.length - 1];
+
+  if (!a.needs_signature) {
+    if (!last) return null;
+    return (
+      <div className="mt-6 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-guild/20 bg-guild-soft/60 px-5 py-4 text-sm">
+        <p>
+          <span className="font-medium text-guild-deep">Agreement accepted</span>{" "}
+          <span className="text-muted">
+            by {last.signer} on {day(last.accepted_at)}
+            {a.signed.length > 1 ? `, with ${a.signed.length - 1} update${a.signed.length > 2 ? "s" : ""}` : ""}.
+          </span>
+        </p>
+        <button
+          onClick={() =>
+            download(
+              `${last.body}\n\n---\nAccepted by ${last.signer} on ${new Date(last.accepted_at).toUTCString()}.\nSHA-256 of the text above: ${last.hash}\n`,
+              `work-agreement-${last.accepted_at.slice(0, 10)}.txt`,
+            )
+          }
+          className="text-sm font-medium text-guild-deep underline-offset-2 hover:underline"
+          title={`Fingerprint ${last.hash}`}
+        >
+          Download a copy
+        </button>
+      </div>
+    );
+  }
+
+  async function accept() {
+    setBusy(true);
+    setErr(null);
+    try {
+      onChange(
+        await call<View>(`/portal/${token}/agreement`, {
+          method: "POST",
+          body: JSON.stringify({ name: name.trim(), hash: a.hash, agree: read }),
+        }),
+      );
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : "Something went wrong");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <section className="mt-6 rounded-xl border border-seal/30 bg-white p-5 sm:p-6">
+      <p className="text-xs font-medium uppercase tracking-wide text-seal">Before work starts</p>
+      <h2 className="mt-1 font-display text-xl font-semibold">
+        {a.is_amendment ? "New work needs your OK" : "Review and accept the work agreement"}
+      </h2>
+      <p className="mt-2 text-sm text-muted">
+        {a.is_amendment
+          ? `${a.new_titles.join(", ")} (${usd(a.new_total_cents)}) was added to your project. Please accept the updated agreement before it starts.`
+          : "It lists the milestones, the prices, and how paying and approving work. It takes about two minutes to read."}
+      </p>
+
+      {a.summary && (
+        <div className="mt-4 rounded-lg bg-paper px-4 py-3">
+          <p className="text-xs font-medium text-muted">In short</p>
+          <p className="mt-1 leading-relaxed">{a.summary}</p>
+          {a.summary_by === "ai" && (
+            <p className="mt-2 text-xs text-muted">Summary written by AI. The full terms below are what you agree to.</p>
+          )}
+        </div>
+      )}
+
+      <details className="mt-3 rounded-lg border border-line">
+        <summary className="cursor-pointer px-4 py-2.5 text-sm font-medium hover:bg-paper">Read the full agreement</summary>
+        <pre className="max-h-80 overflow-auto whitespace-pre-wrap border-t border-line px-4 py-3 font-sans text-sm leading-relaxed">
+          {a.text}
+        </pre>
+      </details>
+
+      <label className="mt-4 flex items-start gap-2.5 text-sm">
+        <input
+          type="checkbox"
+          checked={read}
+          onChange={(e) => setRead(e.target.checked)}
+          className="mt-0.5 h-4 w-4 accent-guild"
+        />
+        <span>I&apos;ve read the full agreement and I accept it.</span>
+      </label>
+      <div className="mt-3 flex flex-col gap-2 sm:flex-row">
+        <input
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          maxLength={80}
+          placeholder="Type your full name to sign"
+          className="w-full rounded-lg border border-line px-3 py-2 text-sm focus:border-guild focus:outline-none"
+        />
+        <button
+          disabled={busy || !read || name.trim().length < 2}
+          onClick={accept}
+          className="shrink-0 rounded-lg bg-guild px-4 py-2 text-sm font-medium text-white hover:bg-guild-deep disabled:opacity-50"
+        >
+          {busy ? "Signing…" : "Accept and sign"}
+        </button>
+      </div>
+      <p className="mt-2 text-xs text-muted">
+        Signing as {view.client_email}. We keep the exact text you accept, with a fingerprint, so it can&apos;t be changed later.
+      </p>
+      {err && <p className="mt-2 text-sm text-alert">{err}</p>}
+    </section>
+  );
+}
+

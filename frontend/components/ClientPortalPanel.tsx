@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import useSWR from "swr";
+import useSWR, { mutate as refreshKey } from "swr";
 import { apiDelete, apiGet, apiPost } from "@/lib/api";
 import { timeAgo } from "@/lib/format";
 import { Button, ErrorText, Panel, inputCls } from "@/components/ui";
@@ -16,9 +16,22 @@ interface Row {
   approved_at: string | null;
   feedback: string;
   locked: boolean;
+  in_agreement: boolean;
+}
+
+interface SignedRow {
+  kind: "work" | "amendment";
+  signer: string;
+  accepted_at: string;
+  hash: string;
+}
+
+interface FullAgreement {
+  accepted: (SignedRow & { body: string; email: string })[];
 }
 
 interface Status {
+  agreement: { needs_signature: boolean; new_titles: string[]; signed: SignedRow[] };
   enabled: boolean;
   path: string;
   created_at: string | null;
@@ -46,6 +59,10 @@ export function ClientPortalPanel({ jobId, onScopeFlag }: { jobId: string; onSco
   const [copied, setCopied] = useState(false);
   const [delivering, setDelivering] = useState<string | null>(null);
   const [note, setNote] = useState("");
+  const [showText, setShowText] = useState(false);
+  const { data: full } = useSWR<FullAgreement>(showText ? ["job-agreement", jobId] : null, () =>
+    apiGet<FullAgreement>(`/jobs/${jobId}/agreement`),
+  );
 
   async function run(id: string, fn: () => Promise<unknown>) {
     setBusy(id);
@@ -53,6 +70,7 @@ export function ClientPortalPanel({ jobId, onScopeFlag }: { jobId: string; onSco
     try {
       await fn();
       await mutate();
+      refreshKey(["milestones", jobId]); // so "Send invoice" on the job page updates too
       return true;
     } catch (e) {
       setErr(e instanceof Error ? e.message : "Something went wrong");
@@ -71,6 +89,9 @@ export function ClientPortalPanel({ jobId, onScopeFlag }: { jobId: string; onSco
 
   if (!data) return null;
   const hasFeedback = data.milestones.some((m) => m.feedback);
+  const ag = data.agreement;
+  const lastSigned = ag.signed[ag.signed.length - 1];
+  const day = (iso: string) => new Date(iso).toLocaleDateString(undefined, { month: "short", day: "numeric" });
 
   return (
     <Panel
@@ -116,6 +137,39 @@ export function ClientPortalPanel({ jobId, onScopeFlag }: { jobId: string; onSco
       </p>
 
       {data.milestones.length > 0 && (
+        <div
+          className={`mt-3 rounded-lg px-3 py-2 text-sm ${ag.needs_signature ? "border border-seal/30 bg-seal-soft/50" : "bg-guild-soft/60"}`}
+        >
+          {ag.needs_signature ? (
+            <p>
+              <span className="font-medium text-seal">
+                {lastSigned ? "New work needs the client's OK: " : "Waiting for the client to accept the work agreement. "}
+              </span>
+              {lastSigned
+                ? `${ag.new_titles.join(", ")}.`
+                : "Invoices and deposit holds unlock once they accept it on the client page."}
+            </p>
+          ) : lastSigned ? (
+            <p className="flex flex-wrap items-center justify-between gap-2">
+              <span>
+                <span className="font-medium text-guild-deep">Agreement accepted</span>{" "}
+                <span className="text-muted">by {lastSigned.signer} on {day(lastSigned.accepted_at)}.</span>
+              </span>
+              <button className="text-xs font-medium text-guild-deep hover:underline" onClick={() => setShowText((s) => !s)}>
+                {showText ? "Hide agreement" : "View agreement"}
+              </button>
+            </p>
+          ) : null}
+          {showText && full?.accepted?.length ? (
+            <pre className="mt-2 max-h-72 overflow-auto whitespace-pre-wrap rounded-md border border-line bg-white p-3 font-sans text-xs leading-relaxed">
+              {full.accepted[full.accepted.length - 1].body}
+              {`\n\nAccepted by ${full.accepted[full.accepted.length - 1].signer} (${full.accepted[full.accepted.length - 1].email}). SHA-256: ${full.accepted[full.accepted.length - 1].hash}`}
+            </pre>
+          ) : null}
+        </div>
+      )}
+
+      {data.milestones.length > 0 && (
         <ul className="mt-4 divide-y divide-line">
           {data.milestones.map((m) => {
             const l = LABEL[m.stage];
@@ -126,10 +180,15 @@ export function ClientPortalPanel({ jobId, onScopeFlag }: { jobId: string; onSco
                   <div className="flex min-w-0 flex-wrap items-center gap-2">
                     <span className="font-medium">{m.title}</span>
                     <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${l.cls}`}>{l.text}</span>
+                    {!m.in_agreement && !m.locked && m.stage !== "payment_due" && (
+                      <span className="rounded-full border border-dashed border-seal/40 px-2 py-0.5 text-xs text-seal">
+                        Not agreed yet
+                      </span>
+                    )}
                   </div>
                   {canDeliver && delivering !== m.id && (
                     <Button variant="quiet" onClick={() => { setDelivering(m.id); setNote(""); }}>
-                      {m.delivered_at ? "Deliver again" : "Mark as delivered"}
+                      {m.delivered_at ? "Deliver again" : m.stage === "payment_due" ? "Add delivery note" : "Mark as delivered"}
                     </Button>
                   )}
                 </div>
@@ -180,3 +239,4 @@ export function ClientPortalPanel({ jobId, onScopeFlag }: { jobId: string; onSco
     </Panel>
   );
 }
+

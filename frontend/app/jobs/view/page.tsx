@@ -29,6 +29,8 @@ interface Milestone {
   scope: string;
   amount: number;
   status: string;
+  delivered_at?: string | null;
+  client_changes_requested_at?: string | null;
 }
 interface Invoice {
   id: string;
@@ -399,17 +401,29 @@ function JobPage() {
                 )}
 
                 <div className="mt-3 flex flex-wrap gap-2">
-                  {!inv && !held && (isOwner || isWorker) && (
-                    <Button
-                      disabled={!job.worker_id || !!busy}
-                      onClick={() => sendInvoice(m.id)}
-                      title={
-                        !job.worker_id ? "Assign a worker first" : undefined
-                      }
-                    >
-                      {busy === `send-${m.id}` ? "Sending…" : "Send invoice"}
-                    </Button>
-                  )}
+                  {!inv && !held && (isOwner || isWorker) && (() => {
+                    // Same rule as the backend: deliver first, and no open change request.
+                    const changesOpen =
+                      !!m.client_changes_requested_at &&
+                      (!m.delivered_at ||
+                        new Date(m.client_changes_requested_at) > new Date(m.delivered_at));
+                    const why = !job.worker_id
+                      ? "Assign a worker first"
+                      : !m.delivered_at
+                        ? "Mark it as delivered in the Client page panel first"
+                        : changesOpen
+                          ? "The client asked for changes. Deliver again first"
+                          : undefined;
+                    return (
+                      <Button
+                        disabled={!!why || !!busy}
+                        onClick={() => sendInvoice(m.id)}
+                        title={why}
+                      >
+                        {busy === `send-${m.id}` ? "Sending…" : "Send invoice"}
+                      </Button>
+                    );
+                  })()}
                   {!inv && !held && isOwner && (
                     <Button
                       variant="danger"
@@ -1603,3 +1617,4 @@ function ScopeWatch({
     </div>
   );
 }
+

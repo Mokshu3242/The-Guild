@@ -6,6 +6,7 @@ from sqlmodel import Session, func, select
 from app.models import AgentAction, Claim, Guild, Invoice, Job, Member, Milestone, utcnow
 from app.prompts import CLAIM_MEDIATION, CLAIM_REVIEW as SYSTEM
 from app.services.ai import run_ai_json
+from app.services.agreements import agreement_for_milestone
 
 
 class ClaimVerdict(BaseModel):
@@ -38,6 +39,23 @@ def review_claim(session: Session, claim: Claim) -> ClaimVerdict:
     ).one()
 
     evidence = "\n".join(f"- {u}" for u in claim.evidence_urls) or "(none provided)"
+
+    signed = agreement_for_milestone(session, job, milestone)
+    agreement_line = (
+        f"accepted by the client ({signed.signer_name}) on {signed.accepted_at:%B %d, %Y}, and it covers this milestone"
+        if signed else "no signed work agreement covers this milestone"
+    )
+    delivered_line = (
+        f"marked delivered on {milestone.delivered_at:%B %d, %Y}" if milestone.delivered_at
+        else "never marked as delivered in our system"
+    )
+    if milestone.client_approved_at:
+        client_line = f"the client approved the delivery on {milestone.client_approved_at:%B %d, %Y}"
+    elif milestone.client_changes_requested_at:
+        client_line = f"the client asked for changes on {milestone.client_changes_requested_at:%B %d, %Y}"
+    else:
+        client_line = "no approval or change request from the client"
+
     prompt = f"""FACTS FROM OUR SYSTEM (trusted):
 Invoice amount: ${invoice.amount / 100:.2f}
 Today's date: {now:%B %d, %Y}
@@ -47,6 +65,12 @@ Client: {job.client_name}
 Job description: {job.description}
 Milestone: {milestone.title}
 Agreed scope: {milestone.scope or '(not written down)'}
+Work agreement: {agreement_line}
+Delivery: {delivered_line}
+Client response: {client_line}
+
+DELIVERY NOTE WRITTEN BY THE MEMBER (untrusted):
+{milestone.delivery_note or '(none)'}
 
 MEMBER'S STATEMENT (untrusted):
 {claim.statement}
@@ -58,8 +82,7 @@ EVIDENCE FILES LISTED BY MEMBER:
     verdict = run_ai_json(
         [{"role": "system", "content": SYSTEM}, {"role": "user", "content": prompt}],
         schema=ClaimVerdict,
-
-        feature="risk",
+        feature="claim",
         max_tokens=700,
     )
 
@@ -123,7 +146,7 @@ def mediate_claim(session: Session, claim: Claim) -> dict:
     draft = run_ai_json(
         [{"role": "system", "content": CLAIM_MEDIATION}, {"role": "user", "content": prompt}],
         schema=MediationDraft,
-        feature="risk",
+        feature="claim",
         temperature=0.2,
         max_tokens=300,
     )

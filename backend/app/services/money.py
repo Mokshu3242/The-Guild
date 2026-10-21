@@ -7,6 +7,7 @@ from app.models import (
     AgentAction, Claim, Guild, Invoice, Job, Member, Milestone, Payout, PoolTx, utcnow,
 )
 from app.services import paypal_payouts
+from app.services.job_status import settle_job_status
 from app.services.split_engine import split_payment
 
 logger = logging.getLogger(__name__)
@@ -107,8 +108,10 @@ def process_paid_invoice(session: Session, invoice_id: UUID, source: str) -> dic
     invoice.status = "paid"
     invoice.paid_at = utcnow()
     milestone.status = "paid"
-    job.status = "paid"
-    session.add_all([invoice, milestone, job])
+    session.add_all([invoice, milestone])
+    session.flush()
+    # "paid" only when every milestone is settled, not just this one.
+    settle_job_status(session, job)
 
     # 5. Log
     result = {

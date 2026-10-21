@@ -48,6 +48,8 @@ const WHO: Record<string, { tag: string; cls: string }> = {
    "milestone.delivered": { tag: "Human", cls: "bg-ink text-white" },
    "portal.client_approved": { tag: "Client", cls: "bg-guild-soft text-guild" },
    "portal.client_changes": { tag: "Client", cls: "bg-seal-soft text-seal" },
+  "agreement.accepted": { tag: "Client", cls: "bg-guild-soft text-guild" },
+  "pledge.signed": { tag: "Human", cls: "bg-ink text-white" },
 };
 
 function describe(a: Action): string {
@@ -58,6 +60,12 @@ function describe(a: Action): string {
       return `Matched ${r.top_name ?? "a member"} to a job${r.backup_name ? `, with ${r.backup_name} as backup` : ""}. ${r.reason ?? ""}`;
     case "digest.published":
       return "Wrote the weekly digest.";
+    case "agreement.accepted":
+      return r.kind === "amendment"
+        ? `${i.by} accepted an update to the work agreement for ${i.client} (${r.milestones} milestones, ${usd(r.total_cents ?? 0)}).`
+        : `${i.by} accepted the work agreement for ${i.client}: ${r.milestones} milestone${r.milestones === 1 ? "" : "s"}, ${usd(r.total_cents ?? 0)}. Fingerprint ${r.hash}.`;
+    case "pledge.signed":
+      return `${i.by} signed the Member Pledge.`;
      case "portal.enabled":
      return `${i.by} made a client link for ${r.client}.`;
    case "portal.rotated":
@@ -234,3 +242,4 @@ export function AgentFeed({
     </ol>
   );
 }
+

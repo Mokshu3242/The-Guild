@@ -12,6 +12,8 @@ from app.models import Invoice, Job, Member, Milestone, Reminder, utcnow
 from app.services import paypal_invoices
 from app.services.deposits import active_deposit
 from app.services.money import process_paid_invoice
+from app.services.agreements import require_agreement
+from app.services.job_status import settle_job_status
 from app.services.portal import ensure_token, portal_url
 from app.services.reminders import remind_one
 
@@ -70,6 +72,14 @@ def send_milestone_invoice(
     if invoice and invoice.status in ("sent", "paid"):
         raise HTTPException(400, f"Invoice already {invoice.status}")
 
+    # Deliver, let the client see it, then bill. Never bill work the client hasn't seen.
+    if not milestone.delivered_at:
+        raise HTTPException(400, "Mark this milestone as delivered first, so the client can review it.")
+    asked = milestone.client_changes_requested_at
+    if asked and asked > milestone.delivered_at:
+        raise HTTPException(400, "The client asked for changes. Deliver again before sending the invoice.")
+    require_agreement(session, job, milestone)
+
     # Every invoiced job gets a client link, so it can go in the PayPal email.
     if not job.portal_token:
         ensure_token(job)
@@ -107,8 +117,9 @@ def send_milestone_invoice(
     invoice.status = "sent"
     invoice.sent_at = utcnow()
     milestone.status = "invoiced"
-    job.status = "in_progress"
-    session.add_all([invoice, milestone, job])
+    session.add_all([invoice, milestone])
+    session.flush()
+    settle_job_status(session, job)
     session.commit()
     session.refresh(invoice)
     return invoice
@@ -191,3 +202,4 @@ def invoice_reminders(
     return session.exec(
         select(Reminder).where(Reminder.invoice_id == invoice_id).order_by(Reminder.tier)
     ).all()
+

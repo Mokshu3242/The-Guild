@@ -7,7 +7,7 @@ from sqlmodel import Session
 from app.models import PlatformSetting, utcnow
 
 TTL = 10.0
-FEATURES = {"match", "scope", "claim", "reminder", "deposit_review", "risk", "autopilot", "rate", "forecast", "digest"}
+FEATURES = {"match", "scope", "claim", "reminder", "deposit_review", "risk", "autopilot", "rate", "forecast", "digest", "agreement"}
 
 _cache: dict[str, tuple[Any, float]] = {}
 
@@ -78,3 +78,4 @@ def all_settings(session: Session) -> dict:
         "reminders_enabled": reminders_enabled(session),
         "ai_disabled_features": disabled_features(session),
     }
+

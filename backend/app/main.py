@@ -10,6 +10,7 @@ from app.routers import agent, claims, deposits, guilds, invoices, jobs, members
 from app.routers import platform
 from app.routers import digest
 from app.routers import portal
+from app.routers import agreements
 
 
 logging.basicConfig(level=logging.INFO)
@@ -58,3 +59,4 @@ app.include_router(platform.router)
 app.include_router(digest.router)
 app.include_router(portal.router)
 app.include_router(portal.member_router)
+app.include_router(agreements.router)

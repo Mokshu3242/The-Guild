@@ -15,6 +15,8 @@ from app.services.ai import AIError
 from app.services.claim_reviewer import review_claim
 from app.services.claims import pay_claim
 from app.services.money import process_paid_invoice
+from app.services.agreements import pledge_signed
+from app.services.job_status import settle_job_status
 
 router = APIRouter(prefix="/claims", tags=["claims"])
 
@@ -53,6 +55,8 @@ def create_claim(
     # --- Pool rules ---
     if job.worker_id != me.id:
         raise HTTPException(403, "Only the worker on this job can file a claim")
+    if not pledge_signed(session, me):
+        raise HTTPException(400, "Sign the Member Pledge on your profile before filing a claim")
     if invoice.status != "sent":
         raise HTTPException(400, f"Only unpaid sent invoices can be claimed (this one is {invoice.status})")
     open_claim = session.exec(
@@ -156,8 +160,9 @@ def decide(
         claim.admin_note = note
         invoice = session.get(Invoice, claim.invoice_id)
         job = session.get(Job, session.get(Milestone, invoice.milestone_id).job_id)
-        job.status = "in_progress"
-        session.add_all([claim, job])
+        session.add(claim)
+        session.flush()
+        settle_job_status(session, job)
         session.add(AgentAction(
             guild_id=claim.guild_id,
             action="claim.rejected",

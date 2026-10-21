@@ -14,6 +14,10 @@ Seeds:
 Also keeps everyone's profile photo, and clears announcements and
 maintenance windows from the platform admin.
 
+Agreements (11B): Maya, Leo and Sara have signed the Member Pledge. Gary and
+Bloom Studio accepted their work agreements. Northwind has not yet, so the
+demo can show a client accepting on the client page.
+
 Run from backend/ with the venv active:
     python -m scripts.reset_demo
 """
@@ -29,9 +33,10 @@ from sqlmodel import Session, delete, select
 
 from app.db import engine
 from app.models import (
-    AgentAction, Broadcast, Claim, Deposit, Guild, GuildDigest, Invoice, Job, MaintenanceWindow, Member, Milestone,
-    Payout, PoolTx, Reminder, ScopeFlag, Subscription, WebhookEvent, utcnow,
+    AgentAction, Agreement, Broadcast, Claim, Deposit, Guild, GuildDigest, Invoice, Job, MaintenanceWindow, Member,
+    Milestone, Payout, PoolTx, Reminder, ScopeFlag, Subscription, WebhookEvent, utcnow,
 )
+from app.services.agreements import PLEDGE_VERSION, WORK_VERSION, render_pledge, render_work, sha256
 from app.services import paypal_invoices
 
 PEOPLE = {
@@ -76,8 +81,8 @@ def remember_paypal_links(session: Session) -> dict:
 
 def wipe(session: Session) -> None:
     # Children first, so no foreign key blocks a delete.
-    for model in (Broadcast, MaintenanceWindow, ScopeFlag, Deposit, Reminder, AgentAction, Claim, Payout,
-                  PoolTx, Subscription, WebhookEvent, Invoice, Milestone, Job, Member, Guild):
+    for model in (Agreement, GuildDigest, Broadcast, MaintenanceWindow, ScopeFlag, Deposit, Reminder, AgentAction,
+                  Claim, Payout, PoolTx, Subscription, WebhookEvent, Invoice, Milestone, Job, Member, Guild):
         session.exec(delete(model))
     session.commit()
 
@@ -157,11 +162,31 @@ def seed(session: Session, kept: dict) -> None:
     session.add(Milestone(job_id=active.id, title="Ordering page redesign", amount=60000, status="pending",
                           scope="Hero, cart, and checkout confirmation. Two rounds of edits."))
     paid_ms = Milestone(job_id=paid.id, title="Landing page copy", amount=50000, status="paid",
-                        scope="Hero plus three product sections.")
+                        scope="Hero plus three product sections.",
+                        delivered_at=now - timedelta(days=21), delivery_note="Final copy doc shared in Google Docs.",
+                        client_approved_at=now - timedelta(days=20))
     ghost_ms = Milestone(job_id=ghost.id, title="Studio website copy", amount=8000, status="invoiced",
-                         scope="Home, about, and three class pages. Two rounds of edits.")
+                         scope="Home, about, and three class pages. Two rounds of edits.",
+                         delivered_at=now - timedelta(days=GHOST_DAYS_UNPAID + 1),
+                         delivery_note="All five pages delivered as a shared doc, plus the edits from round two.")
     session.add_all([paid_ms, ghost_ms])
     session.flush()
+
+    # Signed agreements, so claims and the claim reviewer can see what was agreed.
+    for member in m.values():
+        text = render_pledge(guild, member)
+        session.add(Agreement(guild_id=guild.id, member_id=member.id, kind="pledge",
+                              template_version=PLEDGE_VERSION, body=text, sha256=sha256(text),
+                              signer_name=member.name, signer_email=member.email, ip="seed",
+                              accepted_at=member.joined_at))
+    for job, ms, signer, days_ago in ((paid, [paid_ms], "Bloom Studio", 24),
+                                      (ghost, [ghost_ms], "Gary Ghost", GHOST_DAYS_UNPAID + 3)):
+        text = render_work(session, job, ms)
+        session.add(Agreement(guild_id=guild.id, job_id=job.id, kind="work", template_version=WORK_VERSION,
+                              body=text, sha256=sha256(text), milestone_ids=[str(x.id) for x in ms],
+                              total_cents=sum(x.amount for x in ms), signer_name=signer,
+                              signer_email=job.client_email, ip="seed",
+                              accepted_at=now - timedelta(days=days_ago)))
 
     # History: the paid invoice and its split
     paid_inv = Invoice(milestone_id=paid_ms.id, paypal_invoice_id="SEEDED-HISTORY", amount=50000,

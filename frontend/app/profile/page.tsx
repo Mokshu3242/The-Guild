@@ -9,6 +9,7 @@ import { Avatar } from "@/components/Avatar";
 import { AvatarPicker } from "@/components/AvatarPicker";
 import { TrustBadges } from "@/components/TrustBadges";
 import { ReputationCard } from "@/components/ReputationCard";
+import { MemberPledge } from "@/components/MemberPledge";
 
 export default function ProfilePage() {
   const { me, refresh } = useMe();
@@ -147,6 +148,8 @@ export default function ProfilePage() {
       <Panel title="Your reputation">
         <ReputationCard memberId={me.id} name={me.name} />
       </Panel>
+
+      <MemberPledge defaultName={me.name} />
 
       <Panel title="Account">
         <p className="break-words text-sm text-muted">

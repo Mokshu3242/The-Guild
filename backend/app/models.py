@@ -76,6 +76,9 @@ class Job(SQLModel, table=True):
     created_at: datetime = created_field()
     portal_token: Optional[str] = Field(default=None, index=True, unique=True)
     portal_token_created_at: Optional[datetime] = optional_time()
+    # Plain-English summary of the work agreement, and the agreement text hash it was written for.
+    agreement_summary: str = ""
+    agreement_summary_hash: str = ""
 
 
 class Milestone(SQLModel, table=True):
@@ -93,6 +96,7 @@ class Milestone(SQLModel, table=True):
     client_approved_at: Optional[datetime] = optional_time()
     client_changes_requested_at: Optional[datetime] = optional_time()
     client_feedback: str = ""
+    created_at: datetime = created_field()
 
 
 class Invoice(SQLModel, table=True):
@@ -300,3 +304,29 @@ class GuildDigest(SQLModel, table=True):
     stats: dict = Field(default_factory=dict, sa_column=Column(JSON, nullable=False))
     written_by: str = "ai"   # ai | template
     created_at: datetime = created_field()
+
+
+class Agreement(SQLModel, table=True):
+    """One accepted agreement: the exact text, its hash, and who accepted it.
+
+    kind: work (client, first time), amendment (client, after new milestones), pledge (member).
+    The text is a snapshot. It never changes after acceptance, so the hash proves what was agreed.
+    """
+    __tablename__ = "agreements"
+
+    id: UUID = Field(default_factory=uuid4, primary_key=True)
+    guild_id: UUID = Field(foreign_key="guilds.id", index=True)
+    job_id: Optional[UUID] = Field(default=None, foreign_key="jobs.id", index=True)
+    member_id: Optional[UUID] = Field(default=None, foreign_key="members.id", index=True)
+    kind: str = "work"                 # work | amendment | pledge
+    template_version: str = ""         # work-1, pledge-1
+    body: str = ""                     # the exact text that was accepted
+    sha256: str = Field(default="", index=True)
+    milestone_ids: list[str] = Field(default_factory=list, sa_column=Column(JSON))
+    total_cents: int = 0
+    signer_name: str = ""
+    signer_email: str = ""
+    ip: str = ""
+    user_agent: str = ""
+    accepted_at: datetime = created_field()
+
