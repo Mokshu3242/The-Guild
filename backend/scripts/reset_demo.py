@@ -47,15 +47,19 @@ PEOPLE = {
     "sara": dict(email="sara@guild.test", name="Sara", paypal="member3-sb@personal.example.com",
                  skills=["copywriting", "seo", "content"], rate=7500, role="member", days=30),
 }
+# 14A: read-only admin for judges. Optional: seeded only if the Supabase login exists.
+JUDGE = dict(email="judge@guild.test", name="Judge")
 CLIENT_PAYS = "client1-sb@personal.example.com"
 CLIENT_GHOSTS = "client2-sb@personal.example.com"
 GHOST_DAYS_UNPAID = 16   # over 14 days, so the 7A rule scores Gary as High risk
 
 
-def supabase_user_id(session: Session, email: str):
+def supabase_user_id(session: Session, email: str, required: bool = True):
     row = session.connection().execute(
         text("select id from auth.users where email = :e"), {"e": email}
     ).first()
+    if not row and not required:
+        return None
     if not row:
         raise SystemExit(f"No Supabase login for {email}. Create it in Authentication → Users first.")
     return row[0]
@@ -127,6 +131,12 @@ def seed(session: Session, kept: dict) -> None:
                 guild_id=guild.id, member_id=owner.id, paypal_subscription_id=s["paypal_id"],
                 status=s["status"], approve_url=s["approve_url"], activated_at=s["activated_at"],
             ))
+
+    # Judge account (14A): sees everything an admin sees, changes nothing
+    judge_id = supabase_user_id(session, JUDGE["email"], required=False)
+    if judge_id:
+        session.add(Member(guild_id=guild.id, user_id=judge_id, name=JUDGE["name"], email=JUDGE["email"],
+                           role="admin", read_only=True, available=False, skills=[]))
 
     # Restore API keys, so an agent set up before the reset keeps working
     for k in kept.get("api_keys", []):

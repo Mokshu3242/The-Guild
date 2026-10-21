@@ -55,6 +55,8 @@ class Member(SQLModel, table=True):
     avatar_url: str = ""
     role: str = "member"  # admin or member
     joined_at: datetime = created_field()
+    # 14A: a judge account. Sees what an admin sees, can't change anything (enforced in deps.py).
+    read_only: bool = False
 
 
 class Job(SQLModel, table=True):
@@ -449,8 +451,8 @@ class Quote(SQLModel, table=True):
 class AgentMandate(SQLModel, table=True):
     """13B. What the agent may do on its own in one guild. No row means the defaults below.
 
-    Reminders were already automatic (daily cron, all 3 tiers). remind_max_tier now limits that:
-    tiers above it wait for a person. Claims and advances are off until an admin turns them on.
+    The daily reminder cron sends tiers up to remind_max_tier on its own (default 0: none).
+    Higher tiers wait for a person. Claims and advances are off until an admin turns them on.
     Every automatic money action is credited to the admin who set the mandate (set_by_id).
     """
     __tablename__ = "agent_mandates"

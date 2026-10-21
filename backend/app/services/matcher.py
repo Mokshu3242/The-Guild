@@ -15,6 +15,7 @@ def match_job(session: Session, job: Job, feature: str = "match") -> dict:
         select(Member)
         .where(Member.guild_id == job.guild_id)
         .where(Member.id != job.referrer_id)
+        .where(Member.read_only == False)  # noqa: E712  (14A judge accounts never get work)
     ).all()
     if not candidates:
         raise ValueError("No other members in the guild to match")

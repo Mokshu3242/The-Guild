@@ -4,13 +4,9 @@ import Link from "next/link";
 import { Logo } from "@/components/Logo";
 import { useState } from "react";
 import { createClient } from "@/lib/supabase";
+import { DEMO } from "@/lib/demo";
 import { SplitBar } from "@/components/SplitBar";
 
-const DEMO = [
-  { name: "Maya", role: "guild admin", email: "maya@guild.test", password: "maya@123" },
-  { name: "Leo", role: "React developer", email: "leo@guild.test", password: "leo@123" },
-  { name: "Sara", role: "copywriter", email: "sara@guild.test", password: "sara@123" },
-];
 
 const STEPS = [
   {
@@ -67,6 +63,12 @@ export default function Landing() {
             <p className="mt-5 max-w-md text-lg text-muted">
               A small guild shares overflow work, splits every payment fairly, and keeps a shared pool for when a client never pays.
             </p>
+            <div className="mt-7 flex flex-wrap items-center gap-3">
+              <Link href="/try/" className="rounded-lg bg-guild px-5 py-3 font-medium text-white hover:bg-guild-deep">
+                Try the demo
+              </Link>
+              <span className="text-sm text-muted">One click, no sign-up. PayPal sandbox money.</span>
+            </div>
           </div>
 
           <div className="rounded-2xl bg-guild-deep p-6 text-white sm:p-8">

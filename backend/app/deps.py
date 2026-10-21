@@ -9,6 +9,13 @@ from app.db import get_session
 from app.models import Member
 from app.services.notices import enforce
 
+# 14A judge accounts may read everything. These few POSTs only read and log, so they're allowed too.
+READ_ONLY_POSTS = ("/autopilot/scan",)
+READ_ONLY_MESSAGE = (
+    "This is a read-only judge account, so nothing was changed. "
+    "Try the demo as Sara or Leo to click through the member side."
+)
+
 
 def get_current_member(
     request: Request,
@@ -23,6 +30,9 @@ def get_current_member(
     # Maintenance check. Platform admins skip it so they can always fix and end it.
     if not is_platform_admin_email(user.get("email")):
         enforce(session, member.guild_id, request.method, request.url.path)
+    if member.read_only and request.method not in ("GET", "HEAD", "OPTIONS") \
+            and not request.url.path.rstrip("/").endswith(READ_ONLY_POSTS):
+        raise HTTPException(403, READ_ONLY_MESSAGE)
     return member
 
 
@@ -50,3 +60,4 @@ def get_platform_admin(user: dict = Depends(get_current_user)) -> dict:
     if not _platform_emails() or email not in _platform_emails():
         raise HTTPException(403, "Not allowed")
     return {"email": email, "sub": user.get("sub")}
+

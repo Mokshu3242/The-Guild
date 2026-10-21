@@ -16,6 +16,7 @@ from app.services.agreements import require_agreement
 from app.services.job_status import settle_job_status
 from app.services.portal import ensure_token, portal_url
 from app.services.reminders import remind_one
+from app.services.trail import build_trail
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/invoices", tags=["invoices"])
@@ -203,3 +204,14 @@ def invoice_reminders(
         select(Reminder).where(Reminder.invoice_id == invoice_id).order_by(Reminder.tier)
     ).all()
 
+
+
+@router.get("/{invoice_id}/trail")
+def invoice_trail(
+    invoice_id: UUID,
+    me: Member = Depends(get_current_member),
+    session: Session = Depends(get_session),
+):
+    """14A. Every step this invoice's money took, with PayPal IDs. Anyone in the guild can see it."""
+    invoice, _, _ = _invoice_in_my_guild(session, invoice_id, me)
+    return build_trail(session, invoice)

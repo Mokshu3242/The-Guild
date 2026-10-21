@@ -1,6 +1,7 @@
 "use client";
 
 import useSWR, { mutate } from "swr";
+import Link from "next/link";
 import { Suspense, useEffect, useRef, useState } from "react";
 import { motion, useReducedMotion } from "motion/react";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -454,6 +455,14 @@ function JobPage() {
                     >
                       {busy === `remove-${m.id}` ? "Removing…" : "Remove"}
                     </Button>
+                  )}
+                  {inv && (
+                    <Link
+                      href={`/trail/?id=${inv.id}`}
+                      className="rounded-md border border-line bg-white px-3.5 py-2 text-sm font-medium hover:bg-paper"
+                    >
+                      Money trail
+                    </Link>
                   )}
                   {inv?.status === "sent" && (
                     <>

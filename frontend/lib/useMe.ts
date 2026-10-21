@@ -14,6 +14,7 @@ export interface Me {
   available: boolean;
   role: "admin" | "member";
   avatar_url?: string;
+  read_only?: boolean;
 }
 
 export function useMe() {
@@ -23,3 +24,4 @@ export function useMe() {
   const noGuild = error instanceof ApiError && error.status === 404;
   return { me: data, isLoading, error, noGuild, refresh: mutate };
 }
+

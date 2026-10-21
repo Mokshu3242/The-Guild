@@ -106,7 +106,8 @@ def list_members(
 ):
     if me.guild_id != guild_id:
         raise HTTPException(403, "Not your guild")
-    return session.exec(select(Member).where(Member.guild_id == guild_id)).all()
+    # Judge accounts (14A) aren't real members, so they never show up as someone to pick.
+    return session.exec(select(Member).where(Member.guild_id == guild_id, Member.read_only == False)).all()  # noqa: E712
 
 
 @router.post("/{guild_id}/invite")

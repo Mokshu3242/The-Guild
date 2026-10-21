@@ -40,3 +40,6 @@ git push
 - List API routes (from backend): `python -c "import app.main as m; [print(p) for p in m.app.openapi()['paths']]"`
 - Live: backend https://guild-backend-vqg5.onrender.com, frontend https://guild-frontend.mokshadsankhe.workers.dev
 - Next task: Phase 8A Autopilot agent. Bring the draft plus backend/app/models.py and backend/app/services/ai.py.
+
+Maya Email: maya@guild.test
+Maya Password: maya@guild

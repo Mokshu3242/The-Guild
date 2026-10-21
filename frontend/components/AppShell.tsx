@@ -152,7 +152,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const isPlatform = pathname.startsWith("/platform");
   // The client page is opened by clients with a private link. They never log in.
   const isPortal = pathname.startsWith("/portal");
-  const isPublic = pathname === "/" || isLogin || isPortal;
+  const isTry = pathname === "/try";
+  const isPublic = pathname === "/" || isLogin || isPortal || isTry;
   const [email, setEmail] = useState<string | null>(null);
   const [ready, setReady] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -268,6 +269,16 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       </header>
       <div className="print:hidden">
         <BroadcastBanner />
+        {me?.read_only && (
+          <div className="border-b border-seal/30 bg-seal-soft">
+            <p className="mx-auto max-w-6xl px-4 py-2 text-sm text-seal sm:px-6">
+              Judge view: you see what an admin sees, and nothing you click changes anything.{" "}
+              <Link href="/try/" className="font-medium underline underline-offset-2">
+                Switch to a member
+              </Link>
+            </p>
+          </div>
+        )}
       </div>
       <main className="mx-auto max-w-6xl px-4 py-8 sm:px-6 sm:py-10">{children}</main>
     </div>

@@ -4,13 +4,9 @@ import Link from "next/link";
 import { Logo } from "@/components/Logo";
 import { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase";
+import { DEMO } from "@/lib/demo";
 import { Button, ErrorText, inputCls } from "@/components/ui";
 
-const DEMO = [
-  { name: "Maya", role: "guild admin", email: "maya@guild.test", password: "maya@123" },
-  { name: "Leo", role: "React developer", email: "leo@guild.test", password: "leo@123" },
-  { name: "Sara", role: "copywriter", email: "sara@guild.test", password: "sara@123" },
-];
 
 export default function LoginPage() {
   const [mode, setMode] = useState<"signin" | "signup">("signin");
@@ -73,7 +69,12 @@ export default function LoginPage() {
           </button>
         </form>
 
-        <p className="mt-6 text-sm text-muted">Or open the demo as:</p>
+        <p className="mt-6 text-sm text-muted">
+          Or open the demo as:{" "}
+          <Link href="/try/" className="text-guild underline-offset-2 hover:underline">
+            what can I do as each?
+          </Link>
+        </p>
         <div className="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-3">
           {DEMO.map((d) => (
             <button key={d.email} disabled={busy} onClick={() => signIn(d.email, d.password)}
