@@ -1,0 +1,21 @@
+name: Late invoice reminders
+
+on:
+  schedule:
+    - cron: "0 14 * * *"   # daily at 14:00 UTC
+  workflow_dispatch:
+
+jobs:
+  remind:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Wake backend
+        run: |
+          curl -fsS --max-time 90 https://guild-backend-vqg5.onrender.com/health || true
+
+      - name: Run the reminders task
+        env:
+          TASK_SECRET: ${{ secrets.TASK_SECRET }}
+        run: |
+          curl -fsS -X POST https://guild-backend-vqg5.onrender.com/tasks/late-invoices \
+            -H "X-Task-Secret: $TASK_SECRET" --max-time 120
