@@ -287,7 +287,7 @@ function JobPage() {
         )}
 
       <Panel title="What the client needs">
-        <p className="max-w-prose leading-relaxed">{job.description}</p>
+        <p className="max-w-prose whitespace-pre-line leading-relaxed">{job.description}</p>
         {job.match_reason && (
           <p className="mt-4 rounded-md bg-guild-soft px-3 py-2 text-sm text-guild">
             <span className="font-medium">Why {nameOf(job.worker_id)}:</span>{" "}
@@ -516,7 +516,7 @@ function JobPage() {
                             : "Send reminder"}
                         </Button>
                       )}
-                      {isWorker && job.status !== "disputed" && (
+                      {isWorker && !["disputed", "covered"].includes(job.status) && (
                         <Button
                           variant="danger"
                           disabled={!!busy}
@@ -527,7 +527,7 @@ function JobPage() {
                           Client isn't paying
                         </Button>
                       )}
-                      {isWorker && job.status !== "disputed" && (
+                      {isWorker && !["disputed", "covered"].includes(job.status) && (
                         <Button
                           variant="quiet"
                           disabled={!!busy}
@@ -538,7 +538,7 @@ function JobPage() {
                           Get paid now
                         </Button>
                       )}
-                      {isWorker && job.status !== "disputed" && (
+                      {isWorker && !["disputed", "covered"].includes(job.status) && (
                         <Button
                           variant="quiet"
                           disabled={!!busy}

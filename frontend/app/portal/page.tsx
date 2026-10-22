@@ -134,7 +134,7 @@ function Portal() {
     <Shell guild={data.guild_name}>
       <p className="text-sm text-muted">Hi {data.client_name}</p>
       <h1 className="mt-1 font-display text-3xl font-bold tracking-tight">Your project</h1>
-      <p className="mt-3 leading-relaxed">{data.description}</p>
+      <p className="mt-3 whitespace-pre-line leading-relaxed">{data.description}</p>
       {data.worker_name && (
         <p className="mt-2 text-sm text-muted">
           Done by <span className="font-medium text-ink">{data.worker_name}</span> from {data.guild_name}

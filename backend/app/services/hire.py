@@ -170,8 +170,11 @@ def hire(session: Session, key: ApiKey, quote_id, client_name: str, client_email
     ensure_token(job)
     session.add(job)
     session.flush()
-    for m in q.milestones:
-        session.add(Milestone(job_id=job.id, title=m["title"][:120], scope=m["scope"][:600], amount=m["amount_cents"]))
+    now = utcnow()
+    for i, m in enumerate(q.milestones):
+        # One moment per milestone, so every list shows them in the quote's order.
+        session.add(Milestone(job_id=job.id, title=m["title"][:120], scope=m["scope"][:600], amount=m["amount_cents"],
+                              created_at=now + timedelta(milliseconds=i)))
     q.status, q.job_id = "hired", job.id
     session.add(q)
     session.add(AgentAction(
