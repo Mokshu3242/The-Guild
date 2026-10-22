@@ -64,6 +64,8 @@ def member_capacity(session: Session, member: Member) -> dict:
         days, cents = _work_days(session, j, member)
         if not days:
             continue   # delivered, waiting on the client: not taking the member's time
+        while cursor.weekday() >= 5:   # work starts on a weekday
+            cursor += timedelta(days=1)
         end = add_business_days(cursor, days)
         bookings.append({"job_id": str(j.id), "client": j.client_name, "start": cursor.date().isoformat(),
                          "end": end.date().isoformat(), "days": days, "work_cents": cents})

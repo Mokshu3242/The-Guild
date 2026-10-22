@@ -95,7 +95,13 @@ def get_guild(
 ):
     if me.guild_id != guild_id:
         raise HTTPException(403, "Not your guild")
-    return session.get(Guild, guild_id)
+    guild = session.get(Guild, guild_id)
+    data = guild.model_dump()
+    # The invite code lets anyone join as a full member. Only real admins get it,
+    # never members or the read-only judge (both have public demo logins).
+    if me.role != "admin" or me.read_only:
+        data["invite_code"] = ""
+    return data
 
 
 @router.get("/{guild_id}/members")

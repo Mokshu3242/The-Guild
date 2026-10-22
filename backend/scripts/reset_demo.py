@@ -22,6 +22,7 @@ Run from backend/ with the venv active:
     python -m scripts.reset_demo
 """
 
+import secrets
 import uuid
 from datetime import timedelta
 
@@ -102,7 +103,7 @@ def seed(session: Session, kept: dict) -> None:
     now = utcnow()
 
     guild = Guild(
-        name="Design Collective", invite_code="DESIGN2026",
+        name="Design Collective", invite_code=secrets.token_urlsafe(8),  # random: the repo is public
         worker_pct=85, referrer_pct=10, pool_pct=5,
         monthly_fee=1000, claim_wait_days=3, claim_overdue_days=7, claim_cap_pct=50,
         paypal_plan_id=kept["plan_id"],

@@ -21,9 +21,9 @@ export default function TryPage() {
   async function enter(email: string, password: string) {
     setBusy(email);
     setError(null);
-    const supabase = createClient();
-    await supabase.auth.signOut();   // switching roles: drop whoever was signed in
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
+    // No signOut first: AppShell sends you home on SIGNED_OUT, which cut the sign-in short.
+    // Signing in replaces whoever was signed in anyway.
+    const { error } = await createClient().auth.signInWithPassword({ email, password });
     if (error) {
       setError(
         error.message === "Invalid login credentials"
