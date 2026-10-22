@@ -7,7 +7,7 @@ import { createClient } from "@/lib/supabase";
 import { DEMO } from "@/lib/demo";
 
 const LOOK_FOR = [
-  { title: "The money trail", body: "Jobs → Bloom Studio → Money trail. Every PayPal step with its real ID." },
+  { title: "The money trail", body: "Jobs → Gary Ghost → Money trail. A real PayPal invoice, its reminders, and what the pool did." },
   { title: "The safety pool", body: "Pool page. What the pool covered, what came back, and who was paid early." },
   { title: "The agent log", body: "Activity page. Every AI suggestion, rule and human decision, in plain words." },
   { title: "The client side", body: "Open any job's client link to see what the client sees and signs." },

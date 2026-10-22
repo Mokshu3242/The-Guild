@@ -8,8 +8,10 @@ Seeds:
   - An open job, waiting for an AI match
   - A matched job with a milestone, ready to invoice
   - A paid job, already split (history)
-  - A REAL PayPal invoice to Gary Ghost, 16 days unpaid, so he scores High risk
-    and is ready for a claim
+  - A REAL PayPal invoice to Gary Ghost ($300), 16 days unpaid, so he scores
+    High risk and is ready for a claim
+  - A $1,025 pool (founding $1,000 plus the paid job's slice), big enough for
+    an advance and a claim in the same demo
 
 Also keeps everyone's profile photo, and clears announcements and
 maintenance windows from the platform admin.
@@ -190,7 +192,7 @@ def seed(session: Session, kept: dict) -> None:
                         scope="Hero plus three product sections.",
                         delivered_at=now - timedelta(days=21), delivery_note="Final copy doc shared in Google Docs.",
                         client_approved_at=now - timedelta(days=20), approved_by="client")
-    ghost_ms = Milestone(job_id=ghost.id, title="Studio website copy", amount=8000, status="invoiced",
+    ghost_ms = Milestone(job_id=ghost.id, title="Studio website copy", amount=30000, status="invoiced",
                          scope="Home, about, and three class pages. Two rounds of edits.",
                          delivered_at=now - timedelta(days=GHOST_DAYS_UNPAID + 1),
                          delivery_note="All five pages delivered as a shared doc, plus the edits from round two.")
@@ -231,16 +233,16 @@ def seed(session: Session, kept: dict) -> None:
     print("Creating a real PayPal invoice to Gary Ghost...")
     pp_id = paypal_invoices.create_invoice(
         invoice_number=f"GUILD-{uuid.uuid4().hex[:12]}", client_email=CLIENT_GHOSTS,
-        amount_cents=8000, item_name="Studio website copy", note="Milestone for Gary Ghost",
+        amount_cents=30000, item_name="Studio website copy", note="Milestone for Gary Ghost",
     )
     paypal_invoices.send_invoice(pp_id)
     pay_url = paypal_invoices.payer_url(paypal_invoices.get_invoice(pp_id))
     session.add(Invoice(milestone_id=ghost_ms.id, paypal_invoice_id=pp_id, pay_url=pay_url,
-                        amount=8000, status="sent", sent_at=now - timedelta(days=GHOST_DAYS_UNPAID)))
+                        amount=30000, status="sent", sent_at=now - timedelta(days=GHOST_DAYS_UNPAID)))
 
     # Pool: founding contribution + the paid job's slice
     pool_entries = [
-        (5000, "founding", now - timedelta(days=60)),
+        (100000, "founding", now - timedelta(days=60)),   # $1,000, so the video can show an advance and a claim
         (2500, "referral_slice", now - timedelta(days=15)),
     ]
     for amount, source, when in pool_entries:
