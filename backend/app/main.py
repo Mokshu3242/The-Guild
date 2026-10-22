@@ -23,9 +23,11 @@ logging.basicConfig(level=logging.INFO)
 
 app = FastAPI(title="The Guild API", version="0.3.0")
 
+_origins = [o.strip().rstrip("/") for o in [settings.frontend_url, *settings.extra_origins.split(",")] if o.strip()]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[settings.frontend_url] if settings.frontend_url else ["*"],
+    allow_origins=_origins or ["*"],
     allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],

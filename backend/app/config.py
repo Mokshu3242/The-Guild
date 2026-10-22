@@ -23,7 +23,8 @@ class Settings(BaseSettings):
     database_url: str = ""
 
     # App
-    frontend_url: str = ""
+    frontend_url: str = ""        # the main site address, used in client portal links
+    extra_origins: str = ""       # comma-separated other site addresses allowed to call the API (e.g. the old workers.dev one)
     public_base_url: str = "http://127.0.0.1:8000"
     task_secret: str = ""
 
