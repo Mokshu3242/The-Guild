@@ -1,58 +1,80 @@
 "use client";
 
+import { Component, type ReactNode } from "react";
+import dynamic from "next/dynamic";
 import useSWR from "swr";
 import Link from "next/link";
 import { apiGet } from "@/lib/api";
 import { usd } from "@/lib/format";
 import { Panel, Skeleton } from "@/components/ui";
+import { addDays, freeText, shortDate as short, type Capacity, type CapacityRow as Row } from "@/lib/capacity";
 
-interface Booking {
-  job_id: string;
-  client: string;
-  start: string;
-  end: string;
-  days: number;
-  work_cents: number;
-}
-interface Row {
-  id: string;
-  name: string;
-  skills: string[];
-  state: "free" | "busy" | "off";
-  free_from: string | null;
-  away_until: string | null;
-  bookings: Booking[];
-}
-interface Capacity {
-  today: string;
-  start: string;
-  days: number;
-  hours_per_day: number;
-  members: Row[];
-}
+// 14B: Bryntum Scheduler (sponsor tool) by default. Set NEXT_PUBLIC_CAPACITY_BOARD=grid to use the plain grid,
+// for example if the Bryntum trial ever stops working during judging. The grid is also the automatic fallback.
+const USE_BRYNTUM = process.env.NEXT_PUBLIC_CAPACITY_BOARD !== "grid";
+const CapacityScheduler = dynamic(() => import("./CapacityScheduler"), {
+  ssr: false,
+  loading: () => <Skeleton className="h-48" />,
+});
 
-// Dates come as YYYY-MM-DD. Compare them as strings, so time zones never shift a day.
-const addDays = (iso: string, n: number) => {
-  const d = new Date(`${iso}T00:00:00Z`);
-  d.setUTCDate(d.getUTCDate() + n);
-  return d.toISOString().slice(0, 10);
-};
-const short = (iso: string) =>
-  new Date(`${iso}T00:00:00Z`).toLocaleDateString(undefined, { month: "short", day: "numeric", timeZone: "UTC" });
+class Fallback extends Component<{ children: ReactNode; fallback: ReactNode }, { failed: boolean }> {
+  state = { failed: false };
+  static getDerivedStateFromError() {
+    return { failed: true };
+  }
+  componentDidCatch(e: unknown) {
+    console.warn("Bryntum board failed, showing the plain grid instead", e);
+  }
+  render() {
+    return this.state.failed ? this.props.fallback : this.props.children;
+  }
+}
 
 function status(r: Row, today: string) {
-  if (r.state === "off") return { text: "Not taking work", cls: "text-muted" };
-  if (r.state === "free" || !r.free_from || r.free_from <= today) return { text: "Free now", cls: "text-guild" };
-  return { text: `Free ${short(r.free_from)}`, cls: "text-ink" };
+  const text = freeText(r, today);
+  return { text, cls: r.state === "off" ? "text-muted" : text === "Free now" ? "text-guild" : "text-ink" };
 }
 
-/** 14B. Who is busy until when, estimated from open milestones. No library, just a grid. */
+/** 14B. Who is busy until when, estimated from open milestones. */
 export function CapacityBoard() {
   const { data } = useSWR<Capacity>("capacity", () => apiGet<Capacity>("/capacity?weeks=2"), {
     refreshInterval: 60_000,
   });
   if (!data) return <Skeleton className="h-48" />;
 
+  const grid = <GridBoard data={data} />;
+  return (
+    <Panel title="Who's free">
+      <p className="text-sm text-muted">
+        Estimated from each member&apos;s unfinished milestones at their own rate, {data.hours_per_day} hours a working
+        day, one job after another. The AI matcher reads the same dates.
+      </p>
+      <div className="mt-4">
+        {USE_BRYNTUM ? (
+          <Fallback fallback={grid}>
+            <CapacityScheduler data={data} />
+          </Fallback>
+        ) : (
+          grid
+        )}
+      </div>
+      <div className="mt-3 flex flex-wrap gap-4 text-xs text-muted">
+        <span className="flex items-center gap-1.5">
+          <span className="h-3 w-3 rounded-sm bg-seal-soft" /> Booked (estimate, click to open the job)
+        </span>
+        <span className="flex items-center gap-1.5">
+          <span className="h-3 w-3 rounded-sm bg-guild-soft/50" /> Free
+        </span>
+        <span className="flex items-center gap-1.5">
+          <span className="h-3 w-3 rounded-sm border border-line bg-paper" /> Away or not taking work
+        </span>
+      </div>
+    </Panel>
+  );
+}
+
+/** The plain grid: no library. Used as the fallback, or when NEXT_PUBLIC_CAPACITY_BOARD=grid. */
+function GridBoard({ data }: { data: Capacity }) {
   const days = Array.from({ length: data.days }, (_, i) => {
     const iso = addDays(data.start, i);
     const dow = new Date(`${iso}T00:00:00Z`).getUTCDay();
@@ -61,13 +83,8 @@ export function CapacityBoard() {
   const cols = `minmax(7.5rem, 9rem) repeat(${data.days}, minmax(2rem, 1fr))`;
 
   return (
-    <Panel title="Who's free">
-      <p className="text-sm text-muted">
-        Estimated from each member&apos;s unfinished milestones at their own rate, {data.hours_per_day} hours a working
-        day, one job after another. The AI matcher reads the same dates.
-      </p>
-
-      <div className="mt-4 overflow-x-auto">
+    <>
+      <div className="overflow-x-auto">
         <div className="min-w-[44rem]" role="table" aria-label="Member bookings for the next two weeks">
           <div className="grid" style={{ gridTemplateColumns: cols }} role="row">
             <div role="columnheader" />
@@ -132,17 +149,6 @@ export function CapacityBoard() {
         </div>
       </div>
 
-      <div className="mt-3 flex flex-wrap gap-4 text-xs text-muted">
-        <span className="flex items-center gap-1.5">
-          <span className="h-3 w-3 rounded-sm bg-seal-soft" /> Booked (estimate)
-        </span>
-        <span className="flex items-center gap-1.5">
-          <span className="h-3 w-3 rounded-sm bg-guild-soft/50" /> Free
-        </span>
-        <span className="flex items-center gap-1.5">
-          <span className="h-3 w-3 rounded-sm border border-line bg-paper" /> Away or not taking work
-        </span>
-      </div>
-    </Panel>
+    </>
   );
 }

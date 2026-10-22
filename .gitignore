@@ -15,3 +15,6 @@ mcp/.venv/
 
 mcp/.venv/
 quick-start.md
+
+!backend/.env.example
+!frontend/.env.example

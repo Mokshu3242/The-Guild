@@ -1,159 +1,176 @@
 # The Guild
 
-**Freelancers get the power of a company by acting like one.**
+**Freelancers, acting like a company.** A small guild shares overflow work, splits every payment fairly through PayPal, pays members early, and keeps a shared safety pool for when a client never pays. AI agents can even hire the guild.
 
-A small freelancer collective where an AI agent matches shared work, PayPal splits every payment automatically, and a group safety pool covers members when a client never pays.
+**Try it now:** [guild-frontend.mokshadsankhe.workers.dev/try](https://guild-frontend.mokshadsankhe.workers.dev/try/) · one click, no sign-up, PayPal sandbox money.
 
-**[Live demo](https://guild-frontend.mokshadsankhe.workers.dev)** · [API docs](https://guild-backend-vqg5.onrender.com/docs) · [Demo video](https://youtu.be/REPLACE)
+Built for the PayPal AI Hackathon 2026.
 
-## Screenshots
-
-| | |
-|---|---|
-| ![Login](docs/screenshots/login.png) | ![Overview](docs/screenshots/overview.png) |
-| ![Job detail](docs/screenshots/job.png) | ![Claim review](docs/screenshots/claims.png) |
+---
 
 ## The problem
 
-Freelancers work alone. Companies have finance teams and lawyers. Freelancers have a group chat.
+Freelancers carry every risk alone. A client pays 30 days late, or never. A friend brings you work and gets nothing for it. You wait weeks for money you already earned. Agencies solve this with a company around the work. Solo freelancers don't have one.
 
-- Most freelancers have faced late or missing payments, and when a client ghosts, the freelancer absorbs the loss.
-- Overflow work gets passed around informally, and the person who brought the client earns nothing.
+## What The Guild does
 
-## The solution
+A guild is a few freelancers who act like one company:
 
-A guild of 10 to 50 freelancers pools work and money.
+- **Share work.** Post a job you can't take. The AI picks the best member and explains why.
+- **Split every payment.** The client pays a PayPal invoice. The worker, the member who found the client, and the safety pool are paid out automatically (85 / 10 / 5 by default).
+- **Get paid on day one.** Once the client approves the work, the pool can advance part of your share right away. It takes it back, plus a 2% fee, when the client pays.
+- **Covered when a client ghosts.** File a claim. The AI checks it for red flags, an admin decides, and the pool pays. The guild keeps chasing the client and refills the pool first when they pay.
+- **Hire the guild by agent.** A client's AI (Claude Desktop, Cursor, any MCP client) gets a quote and hires the guild through an API key. The client gets a portal link to sign and pay.
+- **A real agreement.** The client accepts a work agreement in their portal. The exact text is stored with a SHA-256 fingerprint. Silence for 5 business days after delivery counts as approval.
+- **Every dollar traceable.** The money trail shows each invoice's journey with real PayPal IDs.
 
-- Members post jobs they can't take. The AI picks the best member and explains why.
-- When a client pays, the money splits automatically and pays out through PayPal.
-- A slice of every payment, plus a small monthly fee, builds a **safety pool**.
-- When a client never pays, the worker files a claim. The AI reviews it and flags risks. **A human admin always makes the final call.**
+## How it uses PayPal
 
-| Share | Goes to |
+| PayPal API | What The Guild does with it |
 |---|---|
-| 85% | the member who did the work |
-| 10% | the member who brought the client |
-| 5% | the safety pool |
+| **Invoicing v2** | Sends a PayPal invoice per milestone, sends AI-written reminders, records "paid directly" payments |
+| **Payouts v1** | Pays the worker, the referrer, claims and advances in batches |
+| **Orders v2** (authorize, capture, void) | Deposit holds: the client's money is held, then captured after delivery or released |
+| **Subscriptions v1** | The monthly member fee that grows the safety pool |
+| **Webhooks** (verified with `verify-webhook-signature`) | `INVOICING.INVOICE.PAID`, `PAYMENT.PAYOUTSBATCH.*`, `CHECKOUT.ORDER.APPROVED`, `PAYMENT.AUTHORIZATION.VOIDED`, `BILLING.SUBSCRIPTION.*`, `PAYMENT.SALE.COMPLETED` |
 
-With no referrer, the worker gets 95%.
+Pay Later works through the PayPal invoice page, so clients can spread a payment while the guild is paid in full.
 
-## Try it in two minutes
+## How the AI is kept safe
 
-Everything runs on PayPal sandbox with fake money. Open the [live demo](https://guild-frontend.mokshadsankhe.workers.dev) and use the demo buttons on the login page.
+**The AI suggests. Rules decide. People approve.**
 
-| Account | Role | Email | Password |
-|---|---|---|---|
-| Maya | Guild admin | `maya@guild.test` | `maya@123` |
-| Leo | React developer | `leo@guild.test` | `leo@123` |
-| Sara | Copywriter | `sara@guild.test` | `sara@123` |
+- The AI (Cloudflare Workers AI) writes things: match reasons, scope drafts, claim reviews, reminders, quotes, notes for admins.
+- Money is never decided by the AI. Splits, caps, advance limits and pool rules are plain code with fixed numbers.
+- Code checks the AI. For example, an agreement summary is thrown away unless it repeats the exact total, and an AI quote's budget only counts if the client actually wrote it.
+- The **agent mandate** lets an admin allow small things without a click (friendly reminders, small claims, small advances). Every automatic payment is logged with the admin who set the rule, and capped per week.
+- Platform kill switches turn off any AI feature, or all of them, instantly.
+- Every decision is in the Activity log in plain words.
 
-1. **As Maya:** open **Anna Startup** and click **Match and assign**. Read why the AI chose that member.
-2. **As Sara:** open **Gary Ghost**. The client hasn't paid in 10 days. Click **Client isn't paying** and file a claim.
-3. **As Maya:** open **Claims**. Read the AI's verdict and red flags, then approve or reject. Going against the AI requires a written reason.
-4. **Agent log:** every decision, tagged **AI**, **Rule**, or **Human**.
+## Try it
 
-The backend sleeps when idle on the free tier. If the first page takes up to a minute, that's it waking up.
+| Account | What you can do |
+|---|---|
+| **Judge** (admin view, read-only) | See everything an admin sees: claims, the pool, the agent log, the money trail. Nothing you click changes anything. |
+| **Sara** (member) | Deliver work, ask to be paid early, file a claim. |
+| **Leo** (member) | Get matched to jobs, set when you're busy. |
 
-## Features
+All three are one click on [/try](https://guild-frontend.mokshadsankhe.workers.dev/try/). Worth a look:
 
-- **Guilds and members.** Create a guild, invite by code, set skills, rate, and availability.
-- **AI job matching.** Scores members on skill fit, availability, and rate, and explains the choice.
-- **Milestone invoicing.** Sends a real PayPal invoice per milestone with a pay link.
-- **Automatic split payouts.** When an invoice is paid, one PayPal Payouts batch pays the worker and the referrer. The pool share stays in the guild account.
-- **Safety pool.** Grows from invoice slices and a monthly PayPal subscription.
-- **AI claim review.** Reads the member's statement, the agreed scope, the timeline, the member's history, and the listed evidence. Returns a verdict, a confidence score, reasons, and red flags.
-- **Human approval.** Only an admin can release pool money. Overriding the AI requires a note, saved to the log.
-- **Recovery.** If a ghost client pays later, the amount the pool covered is taken from the worker's share and returned to the pool. Nobody is paid twice.
-- **Agent log.** Every AI suggestion, rule calculation, and human decision in plain words.
+1. **Jobs → Gary Ghost → Money trail.** A real PayPal invoice ID, three AI-written reminders, the claim, and the Payouts batch that covered it.
+2. **Safety pool.** What the pool covered, what came back, and who was paid early.
+3. **Activity.** Every AI suggestion, rule and human decision.
+4. **Overview → Who's free.** Member capacity on a Bryntum Scheduler, estimated from open work.
 
-## PayPal products used
+The backend runs on Render's free tier. If the first page is slow, it's waking up. Give it a minute.
 
-- **Invoicing:** milestone invoices with client pay links
-- **Payouts:** one batch per paid invoice, plus claim payouts from the pool
-- **Subscriptions:** monthly member contributions to the pool
-- **Webhooks:** invoice paid, payout batch results, subscription status and payments, all signature-verified
-
-## Safety and correctness
-
-- **Cent-exact splits.** All money is stored as integer cents. Rounding leftovers go to the worker, so shares always add up.
-- **No double payouts.** Invoice and claim rows are locked during payment, payout batches use stable IDs that PayPal won't accept twice, and pool credits are keyed to PayPal transaction IDs.
-- **Verified webhooks.** Every webhook is checked with PayPal before it's trusted, and each event is processed once.
-- **Webhook backup.** A sync action asks PayPal for the real status, in case a webhook was missed.
-- **Pool rules.** A member waiting period, an overdue threshold, a 50% cap per claim, and a balance check before any payout.
-- **The AI never moves money.** It suggests and explains. Rules calculate. Humans approve.
-
-## How it's built
+## Architecture
 
 ```
-Next.js static site (Cloudflare Workers)
-        │  Supabase login token
-        ▼
-FastAPI (Render)  ◄────  PayPal webhooks
-        │
-        ├── Supabase Postgres
-        ├── Cloudflare Workers AI  (matching, claim review)
-        └── PayPal  (Invoicing, Payouts, Subscriptions, Webhooks)
+Next.js 16 (static export, Cloudflare)  ──►  FastAPI (Render)  ──►  PayPal REST APIs (sandbox)
+        │                                        │      └────────►  Cloudflare Workers AI
+        └── Supabase Auth                        └──►  Supabase Postgres (SQLModel + Alembic)
+
+Client's AI ──MCP──► mcp/guild_mcp.py ──► /api/v1/quote, /api/v1/hire, /api/v1/jobs/{id}
+GitHub Actions (daily) ──► /tasks/late-invoices, /tasks/auto-approve, /tasks/advance-defaults
 ```
 
-- **Frontend:** Next.js 16 (static export), Tailwind CSS v4, AG Grid Community, SWR, Supabase Auth
-- **Backend:** FastAPI, SQLModel, Alembic, PostgreSQL
-- **AI:** Cloudflare Workers AI (Llama 3.3 70B), validated with Pydantic and retried on bad JSON
-- **Hosting:** Cloudflare Workers static assets, Render, Supabase
-- **Automation:** GitHub Actions keeps the backend awake during judging
-
-## Repo layout
-
-```
-backend/
-  app/
-    models.py        Database tables
-    auth.py          Supabase token checks
-    routers/         API routes
-    services/        PayPal, AI, split engine, claims, pool
-  alembic/           Database migrations
-  scripts/           Smoke tests, end-to-end tests, demo reset
-  tests/             Split engine unit tests
-frontend/
-  app/               Pages
-  components/        UI, split bar, jobs grid, agent feed
-.github/workflows/   Keep-awake job
-```
+- **Frontend:** Next.js 16, React 19, Tailwind CSS v4, SWR, AG Grid Community (jobs table), Bryntum Scheduler (capacity board)
+- **Backend:** FastAPI, SQLModel, Alembic, httpx. All money is integer cents.
+- **Database and auth:** Supabase
+- **AI:** Cloudflare Workers AI (Llama 3.1 8B Instruct), every prompt in `backend/app/prompts.py`
+- **Agents:** an MCP server in `mcp/` built with the official MCP Python SDK
 
 ## Run it locally
 
 You need Python 3.11+, Node 20+, a Supabase project, a PayPal sandbox app, and a Cloudflare account with Workers AI.
 
+### 1. Backend
+
 ```bash
-# Backend
 cd backend
 python -m venv .venv
-source .venv/bin/activate        # Windows: .venv\Scripts\Activate.ps1
+# Windows: .venv\Scripts\activate    macOS/Linux: source .venv/bin/activate
 pip install -r requirements.txt
-cp .env.example .env             # fill in your keys
+cp .env.example .env        # then fill it in
 alembic upgrade head
 uvicorn app.main:app --reload
+```
 
-# Frontend, in a new terminal
+Check it at http://127.0.0.1:8000/health/db.
+
+Seed the demo guild (Maya, Leo, Sara, and optionally Judge). First create those logins in Supabase → Authentication → Users, then:
+
+```bash
+python -m scripts.reset_demo
+```
+
+It asks you to type `RESET`, because it deletes all guild data (logins stay).
+
+### 2. Frontend
+
+```bash
 cd frontend
 npm install
-cp .env.local.example .env.local # fill in your keys
+cp .env.example .env.local   # then fill it in
 npm run dev
 ```
 
-Open http://localhost:3000. Run the split engine tests with `cd backend && pytest -v`.
+Open http://localhost:3000.
 
-## About the demo data
+`npm run build` uses `next build --webpack`. Bryntum's bundle is very large, and Turbopack runs out of memory on it.
 
-The demo guild is seeded with a short history so it doesn't start empty: one paid job and a founding contribution to the pool. Every action you take in the demo, including matching, invoicing, paying, claiming, and approving, runs live against PayPal sandbox and Workers AI.
+### 3. MCP server (optional, to hire the guild from Claude Desktop or Cursor)
 
-## What's next
+See [mcp/README.md](mcp/README.md). In short: make an API key on the Activity page as an admin, then point your MCP client at `mcp/guild_mcp.py`.
 
-- Smart late payment reminders that escalate politely
-- Scope creep detection with one-click add-on invoices
-- Deposits held with PayPal Orders until work is delivered
+### 4. Daily jobs
 
-## License
+The workflows in `.github/workflows` call the backend each day with an `X-Task-Secret` header. Add `TASK_SECRET` to your repository secrets and change the backend URL in each file.
 
-MIT. See [LICENSE](LICENSE).
+| Workflow | Route | What it does |
+|---|---|---|
+| Late invoice reminders | `/tasks/late-invoices` | Sends due reminders, up to the tier the guild's mandate allows |
+| Auto-approve | `/tasks/auto-approve` | 5 business days of silence after delivery counts as approval |
+| Advance defaults | `/tasks/advance-defaults` | Advances unpaid after 45 days become a member debt |
+| Keep awake / keep DB active | | Stops the free tiers from sleeping |
 
-Built for the PayPal AI Hackathon, 2026.
+## Environment variables
+
+**backend/.env** (see `backend/.env.example`)
+
+| Name | What it is |
+|---|---|
+| `PAYPAL_CLIENT_ID`, `PAYPAL_CLIENT_SECRET` | Sandbox REST app credentials |
+| `PAYPAL_WEBHOOK_ID` | The webhook ID from your PayPal app, for signature checks |
+| `PAYPAL_BASE_URL` | `https://api-m.sandbox.paypal.com` |
+| `CLOUDFLARE_ACCOUNT_ID`, `CLOUDFLARE_API_TOKEN` | Workers AI |
+| `CLOUDFLARE_AI_MODEL` | Default `@cf/meta/llama-3.1-8b-instruct` |
+| `SUPABASE_URL`, `SUPABASE_SECRET_KEY`, `SUPABASE_JWKS_URL` | Supabase project and token checks |
+| `DATABASE_URL` | Postgres connection string |
+| `FRONTEND_URL` | Used for client portal links and CORS |
+| `PUBLIC_BASE_URL` | This backend's public URL |
+| `TASK_SECRET` | Shared secret for the daily task routes |
+| `PLATFORM_ADMINS` | Comma-separated emails that can open `/platform` |
+
+**frontend/.env.local** (see `frontend/.env.example`)
+
+| Name | What it is |
+|---|---|
+| `NEXT_PUBLIC_API_URL` | The backend URL |
+| `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` | Supabase project and public key |
+| `NEXT_PUBLIC_CAPACITY_BOARD` | Optional. `grid` swaps the Bryntum board for a plain grid |
+
+## Honest limits
+
+- **Sandbox only.** No real money moves.
+- **The work agreement is a template, not legal advice.** It's rendered from the job's real data and fingerprinted, but a lawyer should review it before real use.
+- **Capacity dates are estimates.** Milestones have no due dates, so bookings are worked out from unfinished milestone amounts, the member's rate, and 6 hours per working day.
+- **The AI model is small and fast.** Code checks every number it writes, and anything it can't do well falls back to plain rule-based text.
+- **Free hosting.** The backend can take up to a minute to wake up.
+
+## Licence
+
+The Guild's own code is under the [MIT License](LICENSE).
+
+Third-party parts keep their own licences: AG Grid Community (MIT), and Bryntum Scheduler, used under Bryntum's free trial for this hackathon (a commercial licence is needed beyond that). Set `NEXT_PUBLIC_CAPACITY_BOARD=grid` to run without Bryntum.
