@@ -2,7 +2,7 @@
 
 **Freelancers, acting like a company.** A small guild shares overflow work, splits every payment fairly through PayPal, pays members early, and keeps a shared safety pool for when a client never pays. AI agents can even hire the guild.
 
-**Try it now:** [guild-frontend.mokshadsankhe.workers.dev/try](https://guild-frontend.mokshadsankhe.workers.dev/try/) · one click, no sign-up, PayPal sandbox money.
+**Try it now:** [guild.mokshadsankhe.me/try](https://guild.mokshadsankhe.me/try/) · one click, no sign-up, PayPal sandbox money.
 
 Built for the PayPal AI Hackathon 2026.
 
@@ -55,7 +55,7 @@ Pay Later works through the PayPal invoice page, so clients can spread a payment
 | **Sara** (member) | Deliver work, ask to be paid early, file a claim. |
 | **Leo** (member) | Get matched to jobs, set when you're busy. |
 
-All three are one click on [/try](https://guild-frontend.mokshadsankhe.workers.dev/try/). Worth a look:
+All three are one click on [/try](https://guild.mokshadsankhe.me/try/). Worth a look:
 
 1. **Jobs → Gary Ghost → Money trail.** A real PayPal invoice ID, three AI-written reminders, the claim, and the Payouts batch that covered it.
 2. **Safety pool.** What the pool covered, what came back, and who was paid early.
@@ -66,14 +66,7 @@ The backend runs on Render's free tier. If the first page is slow, it's waking u
 
 ## Architecture
 
-```
-Next.js 16 (static export, Cloudflare)  ──►  FastAPI (Render)  ──►  PayPal REST APIs (sandbox)
-        │                                        │      └────────►  Cloudflare Workers AI
-        └── Supabase Auth                        └──►  Supabase Postgres (SQLModel + Alembic)
-
-Client's AI ──MCP──► mcp/guild_mcp.py ──► /api/v1/quote, /api/v1/hire, /api/v1/jobs/{id}
-GitHub Actions (daily) ──► /tasks/late-invoices, /tasks/auto-approve, /tasks/advance-defaults
-```
+![The Guild architecture: web app and MCP server in front, the FastAPI backend in the middle, Supabase, Cloudflare Workers AI and PayPal on the right](docs/guild-architecture.svg)
 
 - **Frontend:** Next.js 16, React 19, Tailwind CSS v4, SWR, AG Grid Community (jobs table), Bryntum Scheduler (capacity board)
 - **Backend:** FastAPI, SQLModel, Alembic, httpx. All money is integer cents.
