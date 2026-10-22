@@ -14,6 +14,7 @@ import { AgentFeed } from "./AgentFeed";
 import { PoolBalance } from "./PoolBalance";
 import { Autopilot } from "./Autopilot";
 import { CapacityBoard } from "./CapacityBoard";
+import { InviteCode } from "./InviteCode";
 
 interface Pool {
   pool_balance_cents: number;
@@ -27,7 +28,7 @@ interface Earnings {
 }
 
 export function Dashboard({ me }: { me: Me }) {
-  const { data: guild } = useGuild(me.guild_id);
+  const { data: guild, mutate: refreshGuild } = useGuild(me.guild_id);
   const { data: members } = useMembers(me.guild_id);
   const { data: pool } = useSWR<Pool>("pool", () => apiGet<Pool>("/pool"), {
     refreshInterval: 5000,
@@ -82,12 +83,7 @@ export function Dashboard({ me }: { me: Me }) {
                 Post a job you can&apos;t take
               </Link>
               {me.role === "admin" && guild?.invite_code && (
-                <span className="rounded-lg border border-white/15 px-3 py-2 text-sm text-white/80">
-                  Invite code{" "}
-                  <span className="ml-1 font-semibold tracking-wide text-white">
-                    {guild.invite_code}
-                  </span>
-                </span>
+                <InviteCode guildId={guild.id} code={guild.invite_code} onChange={() => refreshGuild()} />
               )}
             </div>
           </div>
