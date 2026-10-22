@@ -13,6 +13,7 @@ import { JobsGrid, type Job } from "./JobsGrid";
 import { AgentFeed } from "./AgentFeed";
 import { PoolBalance } from "./PoolBalance";
 import { Autopilot } from "./Autopilot";
+import { CapacityBoard } from "./CapacityBoard";
 
 interface Pool {
   pool_balance_cents: number;
@@ -129,6 +130,8 @@ export function Dashboard({ me }: { me: Me }) {
 
       {me.role === "admin" && <Autopilot />}
 
+      <CapacityBoard />
+
       <Panel
         title="Jobs"
         action={
@@ -183,3 +186,4 @@ export function Dashboard({ me }: { me: Me }) {
     </div>
   );
 }
+

@@ -15,6 +15,7 @@ export interface Me {
   role: "admin" | "member";
   avatar_url?: string;
   read_only?: boolean;
+  available_from?: string | null;
 }
 
 export function useMe() {

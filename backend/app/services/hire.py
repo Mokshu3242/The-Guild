@@ -20,6 +20,7 @@ from app.models import AgentAction, Agreement, ApiKey, Guild, Invoice, Job, Memb
 from app.prompts import SCOPE_DRAFT
 from app.services.ai import AIError, run_ai_json
 from app.services.matcher import match_job
+from app.services.capacity import member_capacity
 from app.services.portal import ensure_token, portal_url
 from app.services.scope_builder import ScopeDraft
 
@@ -196,7 +197,7 @@ def match_in_background(job_id) -> None:
             session.rollback()
             return
         top = session.get(Member, UUID(pick["top_member_id"]))
-        if not top or not top.available:
+        if not top or member_capacity(session, top)["state"] == "off":
             session.commit()   # keep the job.match log, leave the choice to a person
             return
         job.worker_id, job.match_reason, job.status = top.id, pick["reason"], "matched"

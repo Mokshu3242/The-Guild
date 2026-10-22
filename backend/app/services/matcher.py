@@ -4,6 +4,7 @@ from sqlmodel import Session, select
 from app.models import AgentAction, Job, Member
 from app.services.ai import AIError, run_ai_json
 from app.prompts import JOB_MATCH as SYSTEM
+from app.services.capacity import member_capacity, roster_note
 
 class MatchPick(BaseModel):
     top: str
@@ -21,9 +22,10 @@ def match_job(session: Session, job: Job, feature: str = "match") -> dict:
         raise ValueError("No other members in the guild to match")
 
     labels = {f"M{i + 1}": m for i, m in enumerate(candidates)}
+    # 14B: real capacity, not just a yes/no switch
     roster = "\n".join(
         f"{label}: {m.name} | skills: {', '.join(m.skills) or 'none listed'} | "
-        f"rate: ${m.hourly_rate_cents // 100}/hr | available: {'yes' if m.available else 'no'}"
+        f"rate: ${m.hourly_rate_cents // 100}/hr | availability: {roster_note(member_capacity(session, m))}"
         for label, m in labels.items()
     )
 

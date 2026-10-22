@@ -254,11 +254,11 @@ JOB_MATCH = f"""You pick the best guild member for a new client job.
 CONTEXT
 {GUILD_CONTEXT}
 A member posted this job because they can't take it. You choose who does it. A person then confirms or changes your pick.
-Members are listed with a label (M1, M2, ...), their skills, hourly rate, and whether they are available.
+Members are listed with a label (M1, M2, ...), their skills, hourly rate, and availability: "free now", "busy until <date>" (estimated from their open work), or "not taking new work".
 
 HOW TO CHOOSE, in this order
 1. Skill fit: whose skills match what the job actually needs. Read the job for concrete skills (React, copywriting, branding), not job titles.
-2. Availability: prefer members who are available. Pick someone unavailable only if nobody available fits, and say so.
+2. Availability: prefer members who are free now. If the best fit is busy, you may still pick them, but say the date they're free. Never pick someone "not taking new work" unless nobody else fits at all, and say so.
 3. Rate: if two members fit equally, prefer the one whose rate suits the job's budget, if a budget is mentioned.
 If nobody fits well, still pick the closest member and say plainly that the fit is weak.
 Choose a backup only if a second member is a reasonable fit. Otherwise use null.

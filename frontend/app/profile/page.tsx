@@ -19,6 +19,7 @@ export default function ProfilePage() {
     skills: "",
     rate: "",
     available: true,
+    busy_until: "",
   });
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
@@ -32,6 +33,7 @@ export default function ProfilePage() {
         skills: me.skills.join(", "),
         rate: String(me.hourly_rate_cents / 100),
         available: me.available,
+        busy_until: me.available_from ? me.available_from.slice(0, 10) : "",
       });
   }, [me]);
 
@@ -52,6 +54,7 @@ export default function ProfilePage() {
           .filter(Boolean),
         hourly_rate_cents: Math.round(Number(f.rate || 0) * 100),
         available: f.available,
+        available_from: f.busy_until,
         avatar_url: me?.avatar_url ?? "",
       });
       await refresh();
@@ -138,6 +141,26 @@ export default function ProfilePage() {
               className="h-4 w-4 accent-[#1e6b52]"
             />
             Available for new work
+          </label>
+          <label className="block text-sm font-medium">
+            Busy until <span className="font-normal text-muted">(optional)</span>
+            <div className="mt-1 flex gap-2">
+              <input
+                type="date"
+                value={f.busy_until}
+                min={new Date().toISOString().slice(0, 10)}
+                onChange={(e) => setF({ ...f, busy_until: e.target.value })}
+                className={`${inputCls} sm:max-w-[12rem]`}
+              />
+              {f.busy_until && (
+                <Button type="button" variant="quiet" onClick={() => setF({ ...f, busy_until: "" })}>
+                  Clear
+                </Button>
+              )}
+            </div>
+            <span className="mt-1 block text-xs font-normal text-muted">
+              Away or booked outside the guild? The matcher treats you as busy until this day, then free again.
+            </span>
           </label>
           <ErrorText>{err}</ErrorText>
           <Notice>{notice}</Notice>

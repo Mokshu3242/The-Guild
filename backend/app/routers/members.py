@@ -1,4 +1,6 @@
-from fastapi import APIRouter, Depends
+from datetime import datetime, timezone
+
+from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field, field_validator
 from sqlmodel import Session, select
 
@@ -19,6 +21,8 @@ class UpdateMeIn(BaseModel):
     available: bool | None = None
     # Empty string removes the photo.
     avatar_url: str | None = Field(default=None, max_length=500)
+    # 14B: "YYYY-MM-DD" = busy until that day. Empty string clears it.
+    available_from: str | None = Field(default=None, max_length=40)
 
     @field_validator("avatar_url")
     @classmethod
@@ -42,7 +46,18 @@ def update_me(
     me: Member = Depends(get_current_member),
     session: Session = Depends(get_session),
 ):
-    for field, value in body.model_dump(exclude_unset=True).items():
+    data = body.model_dump(exclude_unset=True)
+    if "available_from" in data:
+        raw = (data.pop("available_from") or "").strip()
+        if raw:
+            try:
+                day = datetime.fromisoformat(raw[:10]).replace(tzinfo=timezone.utc)
+            except ValueError:
+                raise HTTPException(400, "Use a date like 2026-11-05")
+            me.available_from = day
+        elif raw == "" and body.available_from is not None:
+            me.available_from = None
+    for field, value in data.items():
         if value is None:
             continue  # never wipe a field by sending null
         setattr(me, field, value)
@@ -97,3 +112,4 @@ def my_notices(
             if soon else None
         ),
     }
+

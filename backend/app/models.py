@@ -57,6 +57,8 @@ class Member(SQLModel, table=True):
     joined_at: datetime = created_field()
     # 14A: a judge account. Sees what an admin sees, can't change anything (enforced in deps.py).
     read_only: bool = False
+    # 14B: "busy until". After this date the member counts as free again, even if available is off.
+    available_from: Optional[datetime] = optional_time()
 
 
 class Job(SQLModel, table=True):
