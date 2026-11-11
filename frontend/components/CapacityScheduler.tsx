@@ -87,7 +87,7 @@ export default function CapacityScheduler({ data }: { data: Capacity }) {
   }, [data]);
 
   return (
-    <div className="guild-scheduler overflow-hidden rounded-lg border border-line" style={{ height: 72 + ROW * Math.max(1, resources.length) }}>
+    <div className="guild-scheduler overflow-hidden rounded-lg border border-line" style={{ height: 92 + ROW * Math.max(1, resources.length) }}>
       {/* Keep the red "now" line but hide its clock label (it covers today's date). Weekends in our muted
           colors instead of Bryntum's pink. Short bars end with "…" instead of cutting a word; the tooltip has the full name. */}
       <style>{`
