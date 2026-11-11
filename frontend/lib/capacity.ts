@@ -7,6 +7,15 @@ export interface Booking {
   days: number;
   work_cents: number;
 }
+/** Past work: from when the job came in to the last delivery. */
+export interface PastWork {
+  job_id: string;
+  client: string;
+  start: string; // YYYY-MM-DD
+  end: string; // YYYY-MM-DD, inclusive
+  work_cents: number;
+  outcome: "paid" | "covered" | "delivered";
+}
 export interface CapacityRow {
   id: string;
   name: string;
@@ -15,6 +24,7 @@ export interface CapacityRow {
   free_from: string | null;
   away_until: string | null;
   bookings: Booking[];
+  history?: PastWork[]; // only when asked for with ?past=
 }
 export interface Capacity {
   today: string;
@@ -37,3 +47,6 @@ export function freeText(r: CapacityRow, today: string) {
   if (r.state === "free" || !r.free_from || r.free_from <= today) return "Free now";
   return `Free ${shortDate(r.free_from)}`;
 }
+
+/** Done work on both boards: the guild's muted green. */
+export const PAST_COLOR = "#cfe0d6";

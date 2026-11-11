@@ -17,6 +17,9 @@ import { usd } from "@/lib/format";
 import { addDays, freeText, shortDate, type Capacity } from "@/lib/capacity";
 
 const ROW = 48;
+// Bryntum's "rounded" style shows a light tint of this, like the gold bookings. Matches the legend's green.
+const PAST_BAR = "#2e7d57";
+const OUTCOME = { paid: "paid", covered: "covered by the pool", delivered: "delivered, waiting on the client" } as const;
 
 // Bryntum reads "YYYY-MM-DD" as local midnight, so the bars line up with the day columns.
 const local = (iso: string) => {
@@ -26,9 +29,15 @@ const local = (iso: string) => {
 
 export default function CapacityScheduler({ data }: { data: Capacity }) {
   const router = useRouter();
-  // Wide screens: fit both weeks in view. Phones: keep readable day columns and scroll sideways.
-  // This component only runs in the browser (ssr: false), so window is always there.
+  // The board scrolls sideways: past weeks on the left, upcoming weeks on the right. About three weeks fit
+  // on a wide screen, so day columns stay readable. This component only runs in the browser (ssr: false).
   const [wide] = useState(() => window.innerWidth >= 768);
+  // Open on last Monday, so a week of done work shows next to what's coming.
+  const lastMonday = useMemo(() => {
+    const dow = new Date(`${data.today}T00:00:00Z`).getUTCDay();
+    const back = addDays(data.today, -((dow + 6) % 7) - 7);
+    return back < data.start ? data.start : back;
+  }, [data.today, data.start]);
 
   const { resources, events, ranges } = useMemo(() => {
     const resources = data.members.map((m) => ({
@@ -36,7 +45,24 @@ export default function CapacityScheduler({ data }: { data: Capacity }) {
       name: m.name,
       status: freeText(m, data.today),
     }));
-    const events = data.members.flatMap((m) =>
+    const past = data.members.flatMap((m) =>
+      (m.history ?? []).map((h, i) => ({
+        id: `${m.id}-past-${i}`,
+        resourceId: m.id,
+        name: h.client,
+        startDate: local(h.start),
+        endDate: local(addDays(h.end, 1)),
+        eventColor: PAST_BAR,
+        cls: "guild-past",
+        jobId: h.job_id,
+        workCents: h.work_cents,
+        outcome: h.outcome,
+        startLabel: h.start,
+        endLabel: h.end,
+        done: true,
+      })),
+    );
+    const upcoming = data.members.flatMap((m) =>
       m.bookings.map((b, i) => ({
         id: `${m.id}-${i}`,
         resourceId: m.id,
@@ -49,6 +75,7 @@ export default function CapacityScheduler({ data }: { data: Capacity }) {
         endLabel: b.end,
       })),
     );
+    const events = [...past, ...upcoming];
     const ranges = data.members.flatMap((m) => {
       if (m.state === "off")
         return [{ id: `off-${m.id}`, resourceId: m.id, startDate: local(data.today), endDate: local(addDays(data.start, data.days)), name: "Not taking work" }];
@@ -82,11 +109,12 @@ export default function CapacityScheduler({ data }: { data: Capacity }) {
         eventStyle="rounded"
         eventColor="#a87a1f"
         eventRenderer={({ eventRecord }: { eventRecord: EventModel }) =>
-          `<span>${StringHelper.encodeHtml(eventRecord.name)}</span>`
+          `<span>${eventRecord.getData("done") ? "✓ " : ""}${StringHelper.encodeHtml(eventRecord.name)}</span>`
         }
-        forceFit={wide}
+        tickSize={wide ? 64 : 52}
         onPaint={({ source, firstPaint }: { source: Widget; firstPaint: boolean }) => {
-          if (firstPaint && !wide) (source as Scheduler).scrollToDate(local(data.today), { block: "start", animate: false });
+          if (firstPaint)
+            (source as Scheduler).scrollToDate(local(wide ? lastMonday : data.today), { block: "start", animate: false });
         }}
         columns={[
           {
@@ -110,6 +138,14 @@ export default function CapacityScheduler({ data }: { data: Capacity }) {
         timeRangesFeature={{ showCurrentTimeLine: true }}
         eventTooltipFeature={{
           template: ({ eventRecord }: { eventRecord: EventModel }) => {
+            if (eventRecord.getData("done")) {
+              const outcome = OUTCOME[eventRecord.getData("outcome") as keyof typeof OUTCOME] ?? "done";
+              return `<b>${StringHelper.encodeHtml(eventRecord.name)}</b><br>${StringHelper.encodeHtml(
+                `Done: ${usd(Number(eventRecord.getData("workCents")) || 0)} delivered, ${outcome}. ${shortDate(
+                  String(eventRecord.getData("startLabel")),
+                )} to ${shortDate(String(eventRecord.getData("endLabel")))}`,
+              )}`;
+            }
             const cents = Number(eventRecord.getData("workCents")) || 0;
             const days = Number(eventRecord.getData("workDays")) || 0;
             const end = String(eventRecord.getData("endLabel") ?? "");

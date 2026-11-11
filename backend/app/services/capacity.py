@@ -92,18 +92,44 @@ def member_capacity(session: Session, member: Member) -> dict:
     }
 
 
-def guild_capacity(session: Session, guild_id, weeks: int = 2) -> dict:
+def member_history(session: Session, member: Member, since: datetime) -> list[dict]:
+    """Past work for the board: each job this member delivered something on, from when the job came in
+    to the last delivery. Read-only history; matching and hiring never look at it."""
+    jobs = session.exec(select(Job).where(Job.worker_id == member.id, Job.status != "open")).all()
+    out = []
+    for j in jobs:
+        ms = session.exec(select(Milestone).where(Milestone.job_id == j.id)).all()
+        done = [m for m in ms if m.delivered_at is not None]
+        if not done:
+            continue
+        end = max(_aware(m.delivered_at) for m in done).replace(hour=0, minute=0, second=0, microsecond=0)
+        start = min(_aware(j.created_at).replace(hour=0, minute=0, second=0, microsecond=0), end)
+        if end < since:
+            continue
+        outcome = ("covered" if any(m.status == "covered" for m in ms)
+                   else "paid" if j.status == "paid" else "delivered")
+        out.append({"job_id": str(j.id), "client": j.client_name, "start": start.date().isoformat(),
+                    "end": end.date().isoformat(), "work_cents": sum(m.amount for m in done), "outcome": outcome})
+    return sorted(out, key=lambda h: h["start"])
+
+
+def guild_capacity(session: Session, guild_id, weeks: int = 2, past_weeks: int = 0) -> dict:
     today = _today()
-    start = today - timedelta(days=today.weekday())   # this Monday
+    start = today - timedelta(days=today.weekday() + 7 * past_weeks)   # this Monday, or that many weeks back
     members = session.exec(
         select(Member).where(Member.guild_id == guild_id, Member.read_only == False).order_by(Member.name)  # noqa: E712
     ).all()
+    rows = []
+    for m in members:
+        row = member_capacity(session, m)
+        row["history"] = member_history(session, m, start) if past_weeks else []
+        rows.append(row)
     return {
         "today": today.date().isoformat(),
         "start": start.date().isoformat(),
-        "days": weeks * 7,
+        "days": (weeks + past_weeks) * 7,
         "hours_per_day": HOURS_PER_DAY,
-        "members": [member_capacity(session, m) for m in members],
+        "members": rows,
     }
 
 

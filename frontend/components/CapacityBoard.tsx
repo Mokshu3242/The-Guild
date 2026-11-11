@@ -7,7 +7,7 @@ import Link from "next/link";
 import { apiGet } from "@/lib/api";
 import { usd } from "@/lib/format";
 import { Panel, Skeleton } from "@/components/ui";
-import { addDays, freeText, shortDate as short, type Capacity, type CapacityRow as Row } from "@/lib/capacity";
+import { PAST_COLOR, addDays, freeText, shortDate as short, type Capacity, type CapacityRow as Row } from "@/lib/capacity";
 
 // 14B: Bryntum Scheduler (sponsor tool) by default. Set NEXT_PUBLIC_CAPACITY_BOARD=grid to use the plain grid,
 // for example if the Bryntum trial ever stops working during judging. The grid is also the automatic fallback.
@@ -37,7 +37,8 @@ function status(r: Row, today: string) {
 
 /** 14B. Who is busy until when, estimated from open milestones. */
 export function CapacityBoard() {
-  const { data } = useSWR<Capacity>("capacity", () => apiGet<Capacity>("/capacity?weeks=2"), {
+  // Six weeks back (delivered work) and four weeks ahead (estimated bookings). The board scrolls sideways.
+  const { data } = useSWR<Capacity>("capacity-timeline", () => apiGet<Capacity>("/capacity?weeks=4&past=6"), {
     refreshInterval: 60_000,
   });
   if (!data) return <Skeleton className="h-48" />;
@@ -59,6 +60,9 @@ export function CapacityBoard() {
         )}
       </div>
       <div className="mt-3 flex flex-wrap gap-4 text-xs text-muted">
+        <span className="flex items-center gap-1.5">
+          <span className="h-3 w-3 rounded-sm" style={{ background: PAST_COLOR }} /> Done (past work)
+        </span>
         <span className="flex items-center gap-1.5">
           <span className="h-3 w-3 rounded-sm bg-seal-soft" /> Booked (estimate, click to open the job)
         </span>
@@ -85,7 +89,7 @@ function GridBoard({ data }: { data: Capacity }) {
   return (
     <>
       <div className="overflow-x-auto">
-        <div className="min-w-[44rem]" role="table" aria-label="Member bookings for the next two weeks">
+        <div className="min-w-[44rem]" role="table" aria-label="Member work: done in the past weeks, booked in the next weeks">
           <div className="grid" style={{ gridTemplateColumns: cols }} role="row">
             <div role="columnheader" />
             {days.map((d) => (
@@ -110,6 +114,7 @@ function GridBoard({ data }: { data: Capacity }) {
                 </div>
                 {days.map((d) => {
                   const b = r.bookings.find((x) => d.iso >= x.start && d.iso <= x.end);
+                  const done = !b && r.history?.find((x) => d.iso >= x.start && d.iso <= x.end);
                   const away = !b && r.away_until && d.iso >= data.today && d.iso < r.away_until;
                   const past = d.iso < data.today;
                   const first = b && (d.iso === b.start || d.dow === 1 || d.iso === data.start);
@@ -117,6 +122,22 @@ function GridBoard({ data }: { data: Capacity }) {
                   if (r.state === "off") cls = "bg-paper";
                   if (away) cls = "bg-paper";
                   if (b) cls = "bg-seal-soft text-seal";
+                  if (done) return (
+                    <div
+                      key={d.iso}
+                      role="cell"
+                      title={`${done.client}: done, ${usd(done.work_cents)} delivered (${short(done.start)} to ${short(done.end)})`}
+                      className={`relative my-1.5 border-l border-white text-[10px] leading-[1.75rem] ${d.weekend ? "opacity-40" : ""}`}
+                      style={{ background: PAST_COLOR }}
+                    >
+                      {(d.iso === done.start || d.dow === 1 || d.iso === data.start) && (
+                        <Link href={`/jobs/view/?id=${done.job_id}`} className="absolute inset-y-0 left-1 z-10 max-w-[6rem] truncate hover:underline">
+                          ✓ {done.client}
+                        </Link>
+                      )}
+                      &nbsp;
+                    </div>
+                  );
                   return (
                     <div
                       key={d.iso}
