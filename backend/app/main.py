@@ -39,16 +39,21 @@ def root():
     return {"name": "The Guild API", "version": "0.3.0", "docs": "/docs"}
 
 
+@app.get("/health")
+def health():
+    return {"status": "ok", "service": "guild-backend"}
+
+
 @app.head("/health")
 def health_head():
     return Response(status_code=200)
+
 
 @app.get("/health/db")
 def health_db():
     with engine.connect() as conn:
         conn.execute(text("select 1"))
     return {"status": "ok", "database": "reachable"}
-
 
 app.include_router(guilds.router)
 app.include_router(members.router)
