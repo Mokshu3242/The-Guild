@@ -77,7 +77,7 @@ export function Dashboard({ me }: { me: Me }) {
                 href="/jobs/new/"
                 className={buttonCls(
                   "primary",
-                  "bg-seal-bright text-guild-deep shadow-none hover:bg-white",
+                  "bg-seal-bright text-guild-deep! shadow-none hover:bg-white",
                 )}
               >
                 Post a job you can&apos;t take

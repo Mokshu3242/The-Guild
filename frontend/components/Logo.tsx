@@ -10,7 +10,7 @@ export function Logo({
   title?: string;
 }) {
   return (
-    <svg viewBox="0 0 611 728" className={className} role="img" aria-label={title}>
+    <svg viewBox="0 0 611 728" className={className} {...(title ? { role: "img", "aria-label": title } : { "aria-hidden": true })}>
       <path
         fill={light ? "#ffffff" : "var(--color-guild-deep)"}
         fillRule="evenodd"

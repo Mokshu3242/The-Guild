@@ -61,7 +61,8 @@ const METHOD: Record<string, string> = { bank: "bank transfer", cash: "cash", ot
 function Bar({ part, whole }: { part: number; whole: number }) {
   const pct = whole ? Math.min(100, Math.round((part / whole) * 100)) : 0;
   return (
-    <div className="h-2 overflow-hidden rounded-full bg-paper" aria-label={`${pct}% back in the pool`}>
+    <div className="h-2 overflow-hidden rounded-full bg-paper" role="progressbar" aria-valuemin={0} aria-valuemax={100}
+      aria-valuenow={pct} aria-label={`${pct}% back in the pool`}>
       <div className="h-full rounded-full bg-guild transition-all" style={{ width: `${pct}%` }} />
     </div>
   );

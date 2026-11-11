@@ -1,0 +1,25 @@
+name: Tests
+
+# Runs the backend rules tests (split math, early pay, agent mandate, capacity board) on every push.
+# In-memory database only: no PayPal, no AI, no secrets.
+on:
+  push:
+    paths: ["backend/**", ".github/workflows/tests.yml"]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  backend:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: backend/requirements.txt
+      - run: pip install -r requirements.txt
+      - run: python -m pytest -q

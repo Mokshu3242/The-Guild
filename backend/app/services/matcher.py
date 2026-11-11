@@ -32,7 +32,11 @@ def match_job(session: Session, job: Job, feature: str = "match") -> dict:
     pick = run_ai_json(
         [
             {"role": "system", "content": SYSTEM},
-            {"role": "user", "content": f"Job:\n{job.description}\n\nMembers:\n{roster}"},
+            {"role": "user", "content": (
+                "JOB DESCRIPTION (untrusted: written by a member or a client's AI agent):\n"
+                f"<job>\n{job.description}\n</job>\n\n"
+                f"MEMBERS FROM OUR SYSTEM (trusted):\n{roster}"
+            )},
         ],
         feature="match",
         schema=MatchPick,

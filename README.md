@@ -48,6 +48,7 @@ Pay Later works through the PayPal invoice page, so clients can spread a payment
 - The **agent mandate** lets an admin allow small things without a click (friendly reminders, small claims, small advances). Every automatic payment is logged with the admin who set the rule, and capped per week.
 - Platform kill switches turn off any AI feature, or all of them, instantly.
 - Every decision is in the Activity log in plain words.
+- **Tested.** The money rules (splits, early-pay limits, paying the pool back, the agent mandate) have tests that run on every push. The AI has its own check: a fixed set of matching and claim cases, including prompt-injection attempts, scored against the live prompts. Results: [docs/ai-eval.md](docs/ai-eval.md).
 
 ## Try it
 
@@ -73,7 +74,7 @@ The backend runs on Render's free tier. If the first page is slow, it's waking u
 - **Frontend:** Next.js 16, React 19, Tailwind CSS v4, SWR, AG Grid Community (jobs table), Bryntum Scheduler (capacity board)
 - **Backend:** FastAPI, SQLModel, Alembic, httpx. All money is integer cents.
 - **Database and auth:** Supabase
-- **AI:** Cloudflare Workers AI (Llama 3.1 8B Instruct), every prompt in `backend/app/prompts.py`
+- **AI:** Cloudflare Workers AI (Llama 3.3 70B Instruct, fp8-fast), every prompt in `backend/app/prompts.py`
 - **Agents:** an MCP server in `mcp/` built with the official MCP Python SDK
 
 ## Run it locally
@@ -130,6 +131,17 @@ The workflows in `.github/workflows` call the backend each day with an `X-Task-S
 | Advance defaults | `/tasks/advance-defaults` | Advances unpaid after 45 days become a member debt |
 | Keep awake / keep DB active | | Stops the free tiers from sleeping |
 
+### 5. Tests and the AI check
+
+From `backend`:
+
+```bash
+python -m pytest -q          # the money rules, in an in-memory database: no PayPal, no AI, no secrets
+python -m scripts.ai_eval    # 16 fixed AI cases against Workers AI, writes docs/ai-eval.md
+```
+
+The tests also run on GitHub on every push (`.github/workflows/tests.yml`).
+
 ## Environment variables
 
 **backend/.env** (see `backend/.env.example`)
@@ -140,7 +152,7 @@ The workflows in `.github/workflows` call the backend each day with an `X-Task-S
 | `PAYPAL_WEBHOOK_ID` | The webhook ID from your PayPal app, for signature checks |
 | `PAYPAL_BASE_URL` | `https://api-m.sandbox.paypal.com` |
 | `CLOUDFLARE_ACCOUNT_ID`, `CLOUDFLARE_API_TOKEN` | Workers AI |
-| `CLOUDFLARE_AI_MODEL` | Default `@cf/meta/llama-3.1-8b-instruct` |
+| `CLOUDFLARE_AI_MODEL` | Default `@cf/meta/llama-3.3-70b-instruct-fp8-fast` |
 | `SUPABASE_URL`, `SUPABASE_SECRET_KEY`, `SUPABASE_JWKS_URL` | Supabase project and token checks |
 | `DATABASE_URL` | Postgres connection string |
 | `FRONTEND_URL` | Used for client portal links and CORS |
@@ -159,10 +171,19 @@ The workflows in `.github/workflows` call the backend each day with an `X-Task-S
 ## Honest limits
 
 - **Sandbox only.** No real money moves.
-- **The work agreement is a template, not legal advice.** It's rendered from the job's real data and fingerprinted, but a lawyer should review it before real use.
+- **The work agreement is a template, not legal advice.** It's rendered from the job's real data and fingerprinted, but a lawyer should review it before real use. The pool and early pay raise real legal questions (insurance, lending, who holds the money). Our plan for each is in [docs/legal.md](docs/legal.md).
 - **Capacity dates are estimates.** Milestones have no due dates, so bookings are worked out from unfinished milestone amounts, the member's rate, and 6 hours per working day.
-- **The AI model is small and fast.** Code checks every number it writes, and anything it can't do well falls back to plain rule-based text.
+- **The AI can still be wrong.** It passes all 16 cases in [docs/ai-eval.md](docs/ai-eval.md), but a small test set can't catch everything. Code checks every number it writes, a person approves anything that moves money, and if the AI fails, plain rule-based text takes over.
 - **Free hosting.** The backend can take up to a minute to wake up.
+- **Accessibility.** Checked with axe-core (WCAG 2.1 AA) on every page. The only issues left are inside the Bryntum scheduler's own markup. Not yet tested with a real screen reader.
+
+## What's next
+
+- **Notifications.** Email and phone alerts, so admins can approve a claim or an early payment on the go.
+- **PayPal Disputes API.** Send the evidence pack straight into PayPal's dispute flow, instead of a page to download.
+- **Real users.** A pilot with one small guild of working freelancers.
+- **Real money.** Live PayPal payouts, after the legal steps in [docs/legal.md](docs/legal.md).
+- **More than one guild per person**, and guilds voting on their own split and pool rules.
 
 ## Licence
 

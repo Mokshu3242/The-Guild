@@ -14,7 +14,7 @@ class Settings(BaseSettings):
     # Cloudflare Workers AI
     cloudflare_account_id: str = ""
     cloudflare_api_token: str = ""
-    cloudflare_ai_model: str = "@cf/meta/llama-3.1-8b-instruct"
+    cloudflare_ai_model: str = "@cf/meta/llama-3.3-70b-instruct-fp8-fast"
 
     # Supabase
     supabase_url: str = ""
